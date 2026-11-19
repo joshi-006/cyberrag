@@ -187,3 +187,156 @@ class HybridRAGRetriever:
                 "retrieval_method": "hybrid",
             })
         return results
+
+
+class ClaimConditionedRetriever:
+    """Claim-Conditioned Retrieval matching the evidence gate in 3 stages:
+
+    1. Entity-Pair Sentence Candidates: Keep only sentences where the subject
+       (with aliases) and the object co-occur, aligning retrieval directly with gate expectations.
+    2. Dual Query (Support + Counter): Issue both the affirmative claim query and a negated variant
+       ('no longer', 'stopped', 'ceased', 'takedown', 'disrupted', 'not attributed') so contradictory
+       evidence is actively retrieved and not starved out.
+    3. Publisher Capping & Diversification: Cap retrieved candidates per publisher (default 2)
+       to ensure the publisher count driving verdicts is genuinely independent and not inflated
+       by a single syndicated vendor.
+    """
+
+    COUNTER_TERMS = (
+        "stopped",
+        "ceased",
+        "no longer",
+        "disrupted",
+        "takedown",
+        "terminated",
+        "inactive",
+        "not attributed",
+        "denied",
+        "disputed",
+    )
+
+    def __init__(
+        self,
+        hybrid_retriever: HybridRAGRetriever,
+        gate: Any | None = None,
+        max_per_publisher: int = 2,
+    ):
+        self.hybrid = hybrid_retriever
+        self.documents = hybrid_retriever.documents
+        self.max_per_publisher = max_per_publisher
+        if gate is None:
+            from src.agent.decision_engine import EntityAwareEvidenceGate
+            self.gate = EntityAwareEvidenceGate()
+        else:
+            self.gate = gate
+        logger.info(
+            "ClaimConditionedRetriever initialized (max_per_publisher=%d)",
+            self.max_per_publisher,
+        )
+
+    def retrieve(self, query: str, top_k: int = 5) -> list[dict[str, Any]]:
+        """Fallback generic retrieve calling the underlying hybrid retriever."""
+        return self.hybrid.retrieve(query, top_k=top_k)
+
+    def retrieve_for_claim(
+        self,
+        subject: str,
+        predicate: str,
+        obj: str,
+        natural_query: str | None = None,
+        top_k: int = 10,
+        candidate_pool_k: int = 60,
+    ) -> list[dict[str, Any]]:
+        """Execute 3-stage claim-conditioned retrieval for the given claim triple."""
+        if not subject or not obj:
+            return self.hybrid.retrieve(natural_query or f"{subject} {predicate} {obj}", top_k=top_k)
+
+        # Stage 2: Dual Query Generation (Support + Counter)
+        primary_query = natural_query or f"{subject} {predicate} {obj}"
+        counter_query = f"{subject} {' '.join(self.COUNTER_TERMS[:5])} {obj}"
+
+        pool_aff = self.hybrid.retrieve(primary_query, top_k=candidate_pool_k, candidate_k=candidate_pool_k)
+        pool_cnt = self.hybrid.retrieve(counter_query, top_k=candidate_pool_k, candidate_k=candidate_pool_k)
+
+        merged_candidates: dict[str, dict[str, Any]] = {}
+        for rank, item in enumerate(pool_aff, 1):
+            key = (item.get("report_id"), item.get("segment_id"), item.get("text", "")[:60])
+            item_copy = dict(item)
+            item_copy["aff_rank"] = rank
+            item_copy["claim_conditioned_score"] = item_copy.get("rrf_score", 0.0)
+            merged_candidates[key] = item_copy
+
+        for rank, item in enumerate(pool_cnt, 1):
+            key = (item.get("report_id"), item.get("segment_id"), item.get("text", "")[:60])
+            if key in merged_candidates:
+                merged_candidates[key]["cnt_rank"] = rank
+                # Dual-query fusion bonus: items relevant to both affirmative and counter queries
+                merged_candidates[key]["claim_conditioned_score"] = (
+                    merged_candidates[key]["claim_conditioned_score"] + (1.0 / (60 + rank))
+                )
+                merged_candidates[key]["dual_query_hit"] = True
+            else:
+                item_copy = dict(item)
+                item_copy["cnt_rank"] = rank
+                item_copy["claim_conditioned_score"] = item.get("rrf_score", 0.0)
+                item_copy["is_counter_candidate"] = True
+                merged_candidates[key] = item_copy
+
+        # Stage 1: Entity-Pair Sentence-Level Pre-Gating
+        # Keep only candidates that satisfy the EntityAwareEvidenceGate same-sentence co-occurrence
+        probative_candidates: list[dict[str, Any]] = []
+        for cand in merged_candidates.values():
+            text = cand.get("text", "")
+            is_prob, reason = self.gate.is_probative(text, subject, obj)
+            cand["gate_status"] = reason
+            if is_prob:
+                probative_candidates.append(cand)
+
+        # If candidate pool from top-60 had fewer than top_k probative items,
+        # perform corpus scan over documents for co-occurring segments
+        if len(probative_candidates) < top_k:
+            seen_texts = {c.get("text", "") for c in probative_candidates}
+            for doc in self.documents:
+                doc_text = doc.get("text") or doc.get("clean_text") or ""
+                if doc_text in seen_texts:
+                    continue
+                is_prob, reason = self.gate.is_probative(doc_text, subject, obj)
+                if is_prob:
+                    item = {
+                        "rrf_score": 0.01,
+                        "claim_conditioned_score": 0.01,
+                        "report_id": doc.get("report_id"),
+                        "segment_id": doc.get("segment_id"),
+                        "source": doc.get("source"),
+                        "publisher": doc.get("publisher"),
+                        "publication_date": doc.get("publication_date"),
+                        "text": doc_text,
+                        "entities": doc.get("entities", []),
+                        "synthetic": bool(doc.get("synthetic", False)),
+                        "retrieval_method": "claim_conditioned_scan",
+                        "gate_status": reason,
+                    }
+                    probative_candidates.append(item)
+                    seen_texts.add(doc_text)
+                    if len(probative_candidates) >= candidate_pool_k:
+                        break
+
+        # Sort probative candidates by claim_conditioned_score descending
+        probative_candidates.sort(
+            key=lambda x: x.get("claim_conditioned_score", 0.0), reverse=True
+        )
+
+        # Stage 3: Publisher Capping & Diversification
+        final_results: list[dict[str, Any]] = []
+        publisher_counts: dict[str, int] = {}
+        for cand in probative_candidates:
+            pub = (cand.get("publisher") or cand.get("source") or "Unknown").strip().lower()
+            current_count = publisher_counts.get(pub, 0)
+            if current_count < self.max_per_publisher:
+                publisher_counts[pub] = current_count + 1
+                cand["retrieval_method"] = "claim_conditioned"
+                final_results.append(cand)
+                if len(final_results) >= top_k:
+                    break
+
+        return final_results

@@ -255,7 +255,7 @@ def main():
 
         st.markdown("##### 🎯 Curated Evaluation Scenarios:")
         sc1, sc2, sc3, sc4 = st.columns(4)
-        if sc1.button("1. Verified Attribution", help="Emotet TARGETS banking"):
+        if sc1.button("1. Supported Attribution", help="Emotet TARGETS banking"):
             st.session_state["agent_query"] = "Does Emotet target banking organizations?"
         if sc2.button("2. Zero-Corpus Guard", help="Sandworm USES Cyclops Blink"):
             st.session_state["agent_query"] = "Does Sandworm use Cyclops Blink?"
@@ -277,8 +277,9 @@ def main():
             m_col1, m_col2, m_col3, m_col4 = st.columns([1.5, 1, 1, 1])
 
             status_color = {
-                "VERIFIED": "🟢 VERIFIED",
-                "WEAK_SUPPORT": "🟡 WEAK SUPPORT (Hedged Attribution)",
+                "SUPPORTED": "🟢 SUPPORTED",
+                "VERIFIED": "🟢 SUPPORTED",
+                "WEAK_SUPPORT": "🟡 SUPPORTED (Hedged)",
                 "INSUFFICIENT_EVIDENCE": "🟠 INSUFFICIENT EVIDENCE",
                 "TEMPORAL_SUPERSEDENCE": "🟣 TEMPORAL SUPERSEDENCE",
                 "CONTRADICTED": "🔴 CONTRADICTED",

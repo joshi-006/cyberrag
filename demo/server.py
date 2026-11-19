@@ -51,10 +51,12 @@ if STATIC_DIR.exists():
 PIPELINE: Optional[GraphRAGPipeline] = None
 AGENT: Optional[CyberRAGAgent] = None
 LLM_CLIENT: Optional[LocalLLMClient] = None
+KG_DB: Optional[Any] = None
+LLM_EXTRACTOR: Optional[Any] = None
 
 
 def get_pipeline_and_agent():
-    global PIPELINE, AGENT, LLM_CLIENT
+    global PIPELINE, AGENT, LLM_CLIENT, KG_DB, LLM_EXTRACTOR
     if PIPELINE is None or AGENT is None:
         logger.info("Initializing GraphRAG Pipeline, DeBERTa NLI Verifier, and CyberRAG Agent...")
         
@@ -78,6 +80,15 @@ def get_pipeline_and_agent():
             context_resolver=PIPELINE.context_resolver,
             llm_client=LLM_CLIENT,
         )
+
+        try:
+            from src.graph.db import CTIKnowledgeGraphDB
+            from src.graph.llm_extractor import LLMKnowledgeGraphExtractor
+            KG_DB = CTIKnowledgeGraphDB()
+            LLM_EXTRACTOR = LLMKnowledgeGraphExtractor(llm_client=LLM_CLIENT, db=KG_DB)
+            logger.info("SQLite Knowledge Graph DB (data/cti_kg.db) and LLM Extractor connected.")
+        except Exception as e:
+            logger.warning(f"Could not initialize SQLite KG DB / LLM Extractor: {e}")
 
         # Pre-load post-takedown intelligence (Europol/CISA May 2021) to enable the temporal supersedence benchmark
         # Enabled by default in demo workbench, but strictly honours CTI_LOAD_DEMO_OVERLAY environment variable
@@ -175,6 +186,7 @@ async def check_health():
             pass
 
     verifier_ready = (pipeline is not None and getattr(pipeline, "verifier", None) is not None)
+    db_stats = KG_DB.get_stats() if KG_DB is not None else {}
     return {
         "status": "online",
         "verifier_status": "ready" if verifier_ready else "failed",
@@ -182,9 +194,11 @@ async def check_health():
         "llm_connected": llm_connected,
         "active_model": active_model,
         "active_port": active_port,
+        "database": "SQLite (data/cti_kg.db)",
         "indexed_segments": len(pipeline.retriever.dense.documents),
-        "indexed_entities": len(pipeline.retriever.graph.entity_lookup),
-        "indexed_assertions": len(pipeline.retriever.graph.assertions),
+        "indexed_entities": db_stats.get("total_entities") or len(pipeline.retriever.graph.entity_lookup),
+        "indexed_assertions": db_stats.get("total_relationships") or len(pipeline.retriever.graph.assertions),
+        "llm_extractor": "ready" if LLM_EXTRACTOR is not None else "unavailable",
     }
 
 
@@ -216,46 +230,71 @@ async def run_investigation(req: QueryRequest):
     subgraph_nodes: Dict[str, Dict[str, Any]] = {}
     subgraph_edges: List[Dict[str, Any]] = []
 
-    # Add query matched entities
-    for name, eid in matched_entities:
-        subgraph_nodes[eid] = {
-            "id": eid,
-            "label": name.upper(),
-            "group": "matched_entity",
-            "type": eid.split("::")[0] if "::" in eid else "Entity",
-        }
-        # Add adjacent assertions
-        for assertion in graph_retriever.entity_index.get(eid, [])[:8]:
-            sub_id = assertion.get("subject_id", "")
-            obj_id = assertion.get("object_id", "")
-            rel = assertion.get("predicate") or assertion.get("relation") or "RELATES_TO"
-            
-            if sub_id and sub_id not in subgraph_nodes:
-                sub_label = sub_id.split("::")[-1] if "::" in sub_id else sub_id
-                subgraph_nodes[sub_id] = {
-                    "id": sub_id,
-                    "label": sub_label,
-                    "group": "neighbor",
-                    "type": sub_id.split("::")[0] if "::" in sub_id else "Entity",
-                }
-            if obj_id and obj_id not in subgraph_nodes:
-                obj_label = obj_id.split("::")[-1] if "::" in obj_id else obj_id
-                subgraph_nodes[obj_id] = {
-                    "id": obj_id,
-                    "label": obj_label,
-                    "group": "neighbor",
-                    "type": obj_id.split("::")[0] if "::" in obj_id else "Entity",
-                }
-            
-            edge_id = f"{sub_id}->{rel}->{obj_id}"
-            if not any(e["id"] == edge_id for e in subgraph_edges):
-                subgraph_edges.append({
-                    "id": edge_id,
-                    "from": sub_id,
-                    "to": obj_id,
-                    "label": rel,
-                    "confidence": assertion.get("confidence", 0.8),
-                })
+    # 1. Query SQLite Knowledge Graph Database first
+    if KG_DB is not None:
+        for name, eid in matched_entities:
+            neighborhood = KG_DB.get_neighborhood(eid, max_hops=1)
+            for node in neighborhood.get("nodes", []):
+                nid = node["id"]
+                if nid not in subgraph_nodes:
+                    subgraph_nodes[nid] = {
+                        "id": nid,
+                        "label": node.get("label", nid),
+                        "group": "matched_entity" if nid == eid else "neighbor",
+                        "type": node.get("category", "Entity"),
+                    }
+            for edge in neighborhood.get("edges", []):
+                edge_id = f"{edge['from']}->{edge['label']}->{edge['to']}"
+                if not any(e["id"] == edge_id for e in subgraph_edges):
+                    subgraph_edges.append({
+                        "id": edge_id,
+                        "from": edge["from"],
+                        "to": edge["to"],
+                        "label": edge["label"],
+                        "confidence": edge.get("confidence", 0.85),
+                    })
+
+    # 2. Fallback to in-memory graph index if DB query produced no edges
+    if not subgraph_edges:
+        for name, eid in matched_entities:
+            subgraph_nodes[eid] = {
+                "id": eid,
+                "label": name.upper(),
+                "group": "matched_entity",
+                "type": eid.split("::")[0] if "::" in eid else "Entity",
+            }
+            # Add adjacent assertions
+            for assertion in graph_retriever.entity_index.get(eid, [])[:8]:
+                sub_id = assertion.get("subject_id", "")
+                obj_id = assertion.get("object_id", "")
+                rel = assertion.get("predicate") or assertion.get("relation") or "RELATES_TO"
+                
+                if sub_id and sub_id not in subgraph_nodes:
+                    sub_label = sub_id.split("::")[-1] if "::" in sub_id else sub_id
+                    subgraph_nodes[sub_id] = {
+                        "id": sub_id,
+                        "label": sub_label,
+                        "group": "neighbor",
+                        "type": sub_id.split("::")[0] if "::" in sub_id else "Entity",
+                    }
+                if obj_id and obj_id not in subgraph_nodes:
+                    obj_label = obj_id.split("::")[-1] if "::" in obj_id else obj_id
+                    subgraph_nodes[obj_id] = {
+                        "id": obj_id,
+                        "label": obj_label,
+                        "group": "neighbor",
+                        "type": obj_id.split("::")[0] if "::" in obj_id else "Entity",
+                    }
+                
+                edge_id = f"{sub_id}->{rel}->{obj_id}"
+                if not any(e["id"] == edge_id for e in subgraph_edges):
+                    subgraph_edges.append({
+                        "id": edge_id,
+                        "from": sub_id,
+                        "to": obj_id,
+                        "label": rel,
+                        "confidence": assertion.get("confidence", 0.8),
+                    })
 
     # Serialize execution trace
     serializable_trace = []
@@ -301,9 +340,16 @@ async def run_investigation(req: QueryRequest):
             "nli_label": item.get("nli_label", "CONTRADICTION"),
         })
 
+    status = report.status
+    hedged_only = (status == "WEAK_SUPPORT")
+    if status in ("VERIFIED", "WEAK_SUPPORT"):
+        status = "SUPPORTED"
+
     return {
         "query": report.query,
-        "status": report.status,
+        "status": status,
+        "hedged_only": hedged_only,
+        "raw_status": report.status,
         "consensus_evidence_score": round(report.confidence_score, 4),
         "confidence_score": round(report.confidence_score, 4),  # Deprecated alias for backwards compatibility
         "source_diversity": report.source_diversity,
@@ -342,6 +388,19 @@ async def ingest_report(req: ReportIngestionRequest):
     )
 
     merged = processor.merge_with_baseline_graph(extraction)
+
+    # Persist extracted knowledge into SQLite DB via LLM Extractor
+    if LLM_EXTRACTOR is not None:
+        try:
+            llm_res = LLM_EXTRACTOR.extract_from_text(
+                text=text,
+                metadata={"report_id": rep_id, "source": req.source, "publication_date": req.publication_date},
+                commit_to_db=True,
+            )
+            logger.info("LLM Extractor committed %d entities and %d relations to SQLite KG",
+                        llm_res.get("total_entities", 0), llm_res.get("total_relationships", 0))
+        except Exception as e:
+            logger.warning("LLM extraction warning during report ingestion: %s", e)
 
     # Ingest sentences into dense & hybrid retriever
     sentences = extraction.get("sentences", [])

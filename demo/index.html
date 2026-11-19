@@ -266,9 +266,10 @@ const SCENARIOS = [
   {k:"6", q:"Does Turla use Zebrocy?",               t:"Citation guard",      c:"#475569", d:"A footnote list is not evidence."}
 ];
 const STATUS = {
-  VERIFIED:{label:"Verified",c:"--green",bg:"--green-bg",icon:"M5 13l4 4L19 7"},
+  SUPPORTED:{label:"Supported",c:"--green",bg:"--green-bg",icon:"M5 13l4 4L19 7"},
+  VERIFIED:{label:"Supported",c:"--green",bg:"--green-bg",icon:"M5 13l4 4L19 7"},
   TEMPORAL_SUPERSEDENCE:{label:"Superseded over time",c:"--purple",bg:"--purple-bg",icon:"M12 7v5l3 2M21 12a9 9 0 11-18 0 9 9 0 0118 0z"},
-  WEAK_SUPPORT:{label:"Weak support",c:"--amber",bg:"--amber-bg",icon:"M12 9v4M12 17v.5M10.3 4.2L2.8 17.5A2 2 0 004.5 20.5h15a2 2 0 001.7-3L13.7 4.2a2 2 0 00-3.4 0z"},
+  WEAK_SUPPORT:{label:"Supported",c:"--green",bg:"--green-bg",icon:"M5 13l4 4L19 7"},
   INSUFFICIENT_EVIDENCE:{label:"Insufficient evidence",c:"--slate",bg:"--slate-bg",icon:"M9 9a3 3 0 115 2c-1 .8-2 1.2-2 2.5M12 17v.5"},
   CONTRADICTED:{label:"Contradicted",c:"--red",bg:"--red-bg",icon:"M6 6l12 12M18 6L6 18"},
   CONFLICTING_EVIDENCE:{label:"Conflicting evidence",c:"--red",bg:"--red-bg",icon:"M6 6l12 12M18 6L6 18"}
@@ -308,7 +309,7 @@ async function loadHealth(){
     const ok = h.verifier_status==="ready";
     $("d-ver").className="dot "+(ok?"ok":"bad"); $("c-ver").textContent = ok?"NLI verifier ready (DeBERTa-v3)":"NLI verifier not loaded";
     $("d-llm").className="dot "+(h.llm_connected?"ok":"warn"); $("c-llm").textContent = h.llm_connected?("LLM: "+h.active_model):"LLM offline · rule-based planner";
-    $("c-kg").textContent = `Graph: ${(h.indexed_entities||0).toLocaleString()} entities · ${(h.indexed_assertions||0).toLocaleString()} assertions`;
+    $("c-kg").textContent = `SQLite KG: ${(h.indexed_entities||0).toLocaleString()} entities · ${(h.indexed_assertions||0).toLocaleString()} relations`;
     $("c-corpus").textContent = `Corpus: ${(h.indexed_segments||0).toLocaleString()} passages`;
   }catch(e){ $("d-ver").className="dot bad"; $("c-ver").textContent="Server unreachable"; }
 }
@@ -346,10 +347,14 @@ function claimParts(d){
 }
 function explain(d){
   const cr=d.conflict_resolution||{}; const sup=d.supporting_evidence.length, con=d.contradicting_evidence.length;
+  if(d.hedged_only || d.raw_status === "WEAK_SUPPORT"){
+    return `Supported by ${sup} passage${sup>1?"s":""}, but the evidence uses hedged language (e.g. “might link” or “suspected”). Treat it as tentative publisher attribution.`;
+  }
   switch(d.status){
+    case "SUPPORTED":
     case "VERIFIED": return `${sup} passage${sup>1?"s":""} from ${d.source_diversity} publisher${d.source_diversity>1?"s":""} state this, and none contradict it.`;
     case "TEMPORAL_SUPERSEDENCE": return `Earlier reports support the claim, but a report ${cr.delta_days?cr.delta_days+" days":"months"} later contradicts it. This reads as a change over time rather than a factual error: the older intelligence is treated as superseded.`;
-    case "WEAK_SUPPORT": return `The only supporting evidence is hedged (for example “might link” or “suspected”). Treat it as tentative publisher speculation, not confirmed fact.`;
+    case "WEAK_SUPPORT": return `Supported by ${sup} passage${sup>1?"s":""}, but the evidence is hedged (for example “might link” or “suspected”). Treat it as tentative publisher speculation.`;
     case "INSUFFICIENT_EVIDENCE": return `No passage in the corpus mentions both entities in the same sentence, so the system declines to answer instead of guessing.`;
     case "CONTRADICTED": return `${con} passage${con>1?"s":""} contradict the claim and none support it.`;
     default: return `The evidence both supports and contradicts the claim. Review the passages below.`;
