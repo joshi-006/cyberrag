@@ -170,7 +170,25 @@ footer{border-top:1px solid var(--line);padding:18px 0 30px;color:var(--muted);f
 .xbtn{border:0;background:none;font-size:22px;color:var(--muted);line-height:1}
 .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--navy);color:#fff;padding:12px 18px;border-radius:12px;box-shadow:var(--shadow);opacity:0;pointer-events:none;transition:.25s;z-index:60;max-width:92vw}
 .toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
-@media print{header .chips,.querybox,.act{display:none}}
+
+/* adjudication & export */
+.adjudication{padding:16px 18px}
+.adj-row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:760px){.adj-row{grid-template-columns:1fr}}
+.adj-field label{display:block;font-size:12px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+.adj-buttons{display:flex;gap:6px;flex-wrap:wrap}
+.adj-btn{border:1.5px solid var(--line);background:#fff;border-radius:8px;padding:7px 12px;font-size:13px;font-weight:600;color:var(--muted);transition:.15s}
+.adj-btn:hover{border-color:var(--blue);color:var(--ink)}
+.adj-btn.on[data-val="ACCEPT"]{background:#e3f4ea;border-color:#1e7a47;color:#1e7a47}
+.adj-btn.on[data-val="QUALIFY"]{background:#fdf0d5;border-color:#9a5b00;color:#9a5b00}
+.adj-btn.on[data-val="NEEDS_MORE_EVIDENCE"]{background:#e8edf4;border-color:#475569;color:#475569}
+.adj-select{width:100%;padding:8px 12px;font-size:13.5px;border:1.5px solid var(--line);border-radius:8px;background:#fff;color:var(--ink);outline:none}
+.adj-select:focus{border-color:var(--blue)}
+.adj-notes{width:100%;padding:10px 12px;font-size:13.5px;border:1.5px solid var(--line);border-radius:8px;background:#fff;color:var(--ink);font-family:inherit;resize:vertical;outline:none}
+.adj-notes:focus{border-color:var(--blue)}
+.adj-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:14px;flex-wrap:wrap}
+
+@media print{header .chips,.querybox,.act,.adjudication{display:none}}
 </style>
 </head>
 <body>
@@ -251,6 +269,24 @@ footer{border-top:1px solid var(--line);padding:18px 0 30px;color:var(--muted);f
     <div class="act"><button class="btn ghost" id="cancel-ingest" type="button">Cancel</button><button class="btn" id="submit-ingest" type="button">Add to graph</button></div>
   </div>
 </div>
+
+<!-- tlp warning modal -->
+<div class="modal" id="tlp-modal" role="dialog" aria-modal="true" aria-labelledby="tlp-title">
+  <div class="sheet" style="max-width:540px">
+    <h3 id="tlp-title" style="color:var(--red)"><span id="tlp-head">TLP RESTRICTED EXPORT</span> <button class="xbtn" id="close-tlp-modal" aria-label="Close">×</button></h3>
+    <div class="in">
+      <div id="tlp-warning-box" style="background:var(--amber-bg);border:1.5px solid #e2cb92;padding:14px;border-radius:10px;color:#784500;font-size:13.5px;line-height:1.5">
+        <strong id="tlp-warning-headline">TLP:AMBER Handling Restriction Warning</strong>
+        <p id="tlp-warning-msg" style="margin:6px 0 0">TLP:AMBER intelligence is restricted to participant organizations and clients/partners with an operational need-to-know. Ensure this export is stored on authorized systems and not shared publicly.</p>
+      </div>
+      <p style="margin:2px 0 0;font-size:12.5px;color:var(--muted)">Confirm that you are authorized to export and distribute this intelligence under the designated handling caveat.</p>
+    </div>
+    <div class="act">
+      <button class="btn ghost" id="cancel-tlp-export" type="button">Cancel</button>
+      <button class="btn" id="confirm-tlp-export" type="button" style="background:var(--red)">Authorize &amp; Export</button>
+    </div>
+  </div>
+</div>
 <div class="toast" id="toast" role="status"></div>
 
 <script src="/static/vis-network.min.js"></script>
@@ -269,7 +305,7 @@ const STATUS = {
   SUPPORTED:{label:"Supported",c:"--green",bg:"--green-bg",icon:"M5 13l4 4L19 7"},
   VERIFIED:{label:"Supported",c:"--green",bg:"--green-bg",icon:"M5 13l4 4L19 7"},
   TEMPORAL_SUPERSEDENCE:{label:"Superseded over time",c:"--purple",bg:"--purple-bg",icon:"M12 7v5l3 2M21 12a9 9 0 11-18 0 9 9 0 0118 0z"},
-  WEAK_SUPPORT:{label:"Supported",c:"--green",bg:"--green-bg",icon:"M5 13l4 4L19 7"},
+  WEAK_SUPPORT:{label:"Supported (Hedged)",c:"--amber",bg:"--amber-bg",icon:"M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"},
   INSUFFICIENT_EVIDENCE:{label:"Insufficient evidence",c:"--slate",bg:"--slate-bg",icon:"M9 9a3 3 0 115 2c-1 .8-2 1.2-2 2.5M12 17v.5"},
   CONTRADICTED:{label:"Contradicted",c:"--red",bg:"--red-bg",icon:"M6 6l12 12M18 6L6 18"},
   CONFLICTING_EVIDENCE:{label:"Conflicting evidence",c:"--red",bg:"--red-bg",icon:"M6 6l12 12M18 6L6 18"}
@@ -346,19 +382,23 @@ function claimParts(d){
   return r?{s:r[1],r:r[2],o:r[3]}:{s:txt,r:"",o:""};
 }
 function explain(d){
-  const cr=d.conflict_resolution||{}; const sup=d.supporting_evidence.length, con=d.contradicting_evidence.length;
-  if(d.hedged_only || d.raw_status === "WEAK_SUPPORT"){
+  const cr=d.conflict_resolution||{}; const sup=(d.supporting_evidence||[]).length, con=(d.contradicting_evidence||[]).length;
+  if(d.hedged_only || d.raw_status === "WEAK_SUPPORT" || d.status === "WEAK_SUPPORT"){
     return `Supported by ${sup} passage${sup>1?"s":""}, but the evidence uses hedged language (e.g. “might link” or “suspected”). Treat it as tentative publisher attribution.`;
   }
-  switch(d.status){
-    case "SUPPORTED":
-    case "VERIFIED": return `${sup} passage${sup>1?"s":""} from ${d.source_diversity} publisher${d.source_diversity>1?"s":""} state this, and none contradict it.`;
-    case "TEMPORAL_SUPERSEDENCE": return `Earlier reports support the claim, but a report ${cr.delta_days?cr.delta_days+" days":"months"} later contradicts it. This reads as a change over time rather than a factual error: the older intelligence is treated as superseded.`;
-    case "WEAK_SUPPORT": return `Supported by ${sup} passage${sup>1?"s":""}, but the evidence is hedged (for example “might link” or “suspected”). Treat it as tentative publisher speculation.`;
-    case "INSUFFICIENT_EVIDENCE": return `No passage in the corpus mentions both entities in the same sentence, so the system declines to answer instead of guessing.`;
-    case "CONTRADICTED": return `${con} passage${con>1?"s":""} contradict the claim and none support it.`;
-    default: return `The evidence both supports and contradicts the claim. Review the passages below.`;
+  if(d.status === "SUPPORTED" || d.status === "VERIFIED" || (sup > 0 && con === 0)){
+    return `${sup} passage${sup>1?"s":""} from ${d.source_diversity||1} publisher${(d.source_diversity||1)>1?"s":""} state this, and none contradict it.`;
   }
+  if(d.status === "TEMPORAL_SUPERSEDENCE"){
+    return `Earlier reports support the claim, but a report ${cr.delta_days?cr.delta_days+" days":"months"} later contradicts it. This reads as a change over time rather than a factual error: the older intelligence is treated as superseded.`;
+  }
+  if(d.status === "INSUFFICIENT_EVIDENCE" || (sup === 0 && con === 0)){
+    return `No passage in the corpus mentions both entities in the same sentence, so the system declines to answer instead of guessing.`;
+  }
+  if(d.status === "CONTRADICTED" || (con > 0 && sup === 0)){
+    return `${con} passage${con>1?"s":""} contradict the claim and none support it.`;
+  }
+  return `The evidence both supports and contradicts the claim. Review the passages below.`;
 }
 function highlight(text, names){
   let h=esc(cleanText(text));
@@ -381,13 +421,45 @@ function evCard(e,kind,names,idx){
     <div class="foot"><div class="bar" title="NLI score"><i style="width:${Math.round((p||0)*100)}%;--c:var(${col})"></i></div><span class="mono" style="font-size:12px;color:var(--muted)">NLI ${(p||0).toFixed(2)}</span>
       <span class="rid mono" title="${esc(e.segment_id||"")}">${esc(e.segment_id||e.report_id||"")}</span></div></div>`;
 }
+let pendingExportAction = null;
+function triggerDownload(filename, content, mime) {
+  const blob = new Blob([content], {type: mime});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 function render(d,secs){
-  const meta=STATUS[d.status]||STATUS.CONTRADICTED; const cp=claimParts(d); const names=parseEntities(d);
+  const sup=d.supporting_evidence||[], con=d.contradicting_evidence||[], cr=d.conflict_resolution;
+  let meta = STATUS[d.status];
+  if(!meta){
+    if(sup.length > 0 && con.length === 0) meta = STATUS.SUPPORTED;
+    else if(con.length > 0 && sup.length === 0) meta = STATUS.CONTRADICTED;
+    else if(sup.length === 0 && con.length === 0) meta = STATUS.INSUFFICIENT_EVIDENCE;
+    else meta = STATUS.CONFLICTING_EVIDENCE || STATUS.CONTRADICTED;
+  }
+  if(d.hedged_only || d.raw_status === "WEAK_SUPPORT" || d.status === "WEAK_SUPPORT"){
+    meta=STATUS.WEAK_SUPPORT;
+  }
+  const cp=claimParts(d); const names=parseEntities(d);
   const sup=d.supporting_evidence||[], con=d.contradicting_evidence||[], cr=d.conflict_resolution;
   const score=d.consensus_evidence_score??d.confidence_score;
   const gate=(d.execution_trace||[]).find(s=>s.state==="EVIDENCE_INSPECTION");
   const hops=(d.state_history||[]).filter(s=>s==="RETRY_EXPANSION").length;
   const noEv=d.status==="INSUFFICIENT_EVIDENCE";
+
+  let initDecision = "ACCEPT";
+  if (d.status === "INSUFFICIENT_EVIDENCE") {
+    initDecision = "NEEDS_MORE_EVIDENCE";
+  } else if (d.status === "CONTRADICTED" || d.status === "CONFLICTING_EVIDENCE" || d.status === "TEMPORAL_SUPERSEDENCE" || d.hedged_only || d.raw_status === "WEAK_SUPPORT" || d.status === "WEAK_SUPPORT") {
+    initDecision = "QUALIFY";
+  }
+
   let html=`
   <section class="panel verdict" style="--c:var(${meta.c});--bg2:var(${meta.bg})">
     <div class="badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="${meta.icon}"/></svg><span class="st">${esc(meta.label.toUpperCase())}</span></div>
@@ -420,12 +492,178 @@ function render(d,secs){
   html+=`<div class="grid"><div>
     <section class="panel"><h3><span>Evidence</span><div class="tabs"><button class="tab on" data-t="s" type="button">Supporting<span class="n">${sup.length}</span></button><button class="tab" data-t="c" type="button">Contradicting<span class="n">${con.length}</span></button></div></h3>
       <div class="body" id="evbody"></div></section>
+    
+    <section class="panel" style="margin-top:18px">
+      <h3>Analyst Review &amp; Brief Export <span style="text-transform:none;letter-spacing:0;font-weight:500">Human review step</span></h3>
+      <div class="body adjudication">
+        <div class="adj-row">
+          <div class="adj-field">
+            <label>Analyst Review Decision</label>
+            <div class="adj-buttons" id="adj-decision-btns">
+              <button type="button" class="adj-btn ${initDecision==='ACCEPT'?'on':''}" data-val="ACCEPT">✓ Accept Claim</button>
+              <button type="button" class="adj-btn ${initDecision==='QUALIFY'?'on':''}" data-val="QUALIFY">⚠ Qualify (Caveats)</button>
+              <button type="button" class="adj-btn ${initDecision==='NEEDS_MORE_EVIDENCE'?'on':''}" data-val="NEEDS_MORE_EVIDENCE">? Needs More Evidence</button>
+            </div>
+          </div>
+          <div class="adj-field">
+            <label>Information Sharing Label (TLP v2.0)</label>
+            <select class="adj-select" id="adj-tlp">
+              <option value="TLP:CLEAR">TLP:CLEAR (Public / Unrestricted)</option>
+              <option value="TLP:GREEN" selected>TLP:GREEN (Community / Sector-Wide)</option>
+              <option value="TLP:AMBER">TLP:AMBER (Restricted / Organization Only)</option>
+              <option value="TLP:RED">TLP:RED (Strictly Confidential / Named Recipients)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="adj-row" style="margin-top:14px">
+          <div class="adj-field">
+            <label>Admiralty Source Reliability</label>
+            <select class="adj-select" id="adj-rel">
+              <option value="A - Completely reliable">A - Completely reliable (No doubt of authenticity)</option>
+              <option value="B - Usually reliable" selected>B - Usually reliable (Minor doubts; high track record)</option>
+              <option value="C - Fairly reliable">C - Fairly reliable (Doubts; historically tested)</option>
+              <option value="D - Not usually reliable">D - Not usually reliable (Doubts; past errors)</option>
+              <option value="E - Unreliable">E - Unreliable (Lacks authenticity)</option>
+              <option value="F - Cannot be judged">F - Cannot be judged (Untested source)</option>
+            </select>
+          </div>
+          <div class="adj-field">
+            <label>Admiralty Information Credibility</label>
+            <select class="adj-select" id="adj-cred">
+              <option value="1 - Confirmed by other sources">1 - Confirmed by other sources</option>
+              <option value="2 - Probably true" selected>2 - Probably true (Consistent with known intelligence)</option>
+              <option value="3 - Possibly true">3 - Possibly true (Reasonable; unconfirmed)</option>
+              <option value="4 - Doubtful">4 - Doubtful (Inconsistent with known intelligence)</option>
+              <option value="5 - Improbable">5 - Improbable (Contrary to established facts)</option>
+              <option value="6 - Truth cannot be judged">6 - Truth cannot be judged</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="adj-field" style="margin-top:14px">
+          <label>Analyst Assessment Notes &amp; Policy Caveats</label>
+          <textarea class="adj-notes" id="adj-notes" rows="2" placeholder="Record human assessment caveats, operational context, or corroboration notes..."></textarea>
+        </div>
+
+        <div class="adj-actions">
+          <button type="button" class="btn ghost" id="btn-export-json" style="height:38px;padding:0 14px;font-size:13.5px">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg> Export JSON
+          </button>
+          <button type="button" class="btn" id="btn-export-brief" style="height:38px;padding:0 16px;font-size:13.5px">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg> Export Evidence Brief (.md)
+          </button>
+        </div>
+      </div>
+    </section>
+
     <section class="panel" style="margin-top:18px"><h3>Analyst brief <span style="text-transform:none;letter-spacing:0;font-weight:500">generated from the evidence</span></h3><div class="body brief" id="brief"></div></section>
   </div><div>
     <section class="panel"><h3>Knowledge graph <span style="text-transform:none;letter-spacing:0;font-weight:500">around the claim</span></h3><div class="body"><div id="graph"></div><div class="glegend" id="glegend"></div><div class="gnote">Relations are extracted automatically from reports and are unreviewed. Drag nodes, scroll to zoom.</div></div></section>
     <section class="panel" style="margin-top:18px"><h3>How the system decided <span style="text-transform:none;letter-spacing:0;font-weight:500">${secs.toFixed(1)}s</span></h3><div class="body" id="trace"></div></section>
   </div></div>`;
   $("out").innerHTML=html;
+
+  let activeDecision = initDecision;
+  document.querySelectorAll("#adj-decision-btns .adj-btn").forEach(btn=>{
+    btn.addEventListener("click",()=>{
+      document.querySelectorAll("#adj-decision-btns .adj-btn").forEach(b=>b.classList.remove("on"));
+      btn.classList.add("on");
+      activeDecision = btn.dataset.val;
+    });
+  });
+
+  async function executeExport(format) {
+    const tlp = $("adj-tlp") ? $("adj-tlp").value : "TLP:GREEN";
+    const notes = $("adj-notes") ? $("adj-notes").value.trim() : "";
+    const rel = $("adj-rel") ? $("adj-rel").value : "B - Usually reliable";
+    const cred = $("adj-cred") ? $("adj-cred").value : "2 - Probably true";
+    const qClean = (d.query || "claim").replace(/[^a-zA-Z0-9]/g, "_").slice(0, 30);
+
+    if (format === "json") {
+      const exportObj = {
+        query: d.query,
+        status: d.status,
+        confidence_score: d.consensus_evidence_score ?? d.confidence_score,
+        source_diversity: d.source_diversity,
+        hedged_only: !!d.hedged_only,
+        conflict_resolution: d.conflict_resolution,
+        supporting_evidence: sup,
+        contradicting_evidence: con,
+        analyst_adjudication: {
+          decision: activeDecision,
+          source_reliability: rel,
+          information_credibility: cred,
+          tlp_label: tlp,
+          analyst_notes: notes,
+          exported_at: new Date().toISOString()
+        }
+      };
+      const filename = `CTI_Analysis_${qClean}_${tlp.replace(":", "_")}.json`;
+      triggerDownload(filename, JSON.stringify(exportObj, null, 2), "application/json");
+      toast(`Exported ${filename} (${tlp})`);
+    } else {
+      const btn = $("btn-export-brief");
+      if (btn) { btn.disabled = true; btn.textContent = "Exporting…"; }
+      try {
+        const payload = {
+          query: d.query,
+          status: d.status,
+          confidence_score: d.consensus_evidence_score ?? d.confidence_score,
+          source_diversity: d.source_diversity,
+          analyst_decision: activeDecision,
+          analyst_notes: notes,
+          source_reliability: rel,
+          info_credibility: cred,
+          tlp_label: tlp,
+          supporting_evidence: sup,
+          contradicting_evidence: con,
+          conflict_resolution: d.conflict_resolution
+        };
+        const r = await fetch("/api/export_brief", {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify(payload)
+        });
+        const res = await r.json();
+        if (!r.ok) throw new Error(res.detail || r.status);
+        triggerDownload(res.filename, res.markdown, "text/markdown");
+        toast(`Exported ${res.filename} (${res.tlp})`);
+      } catch (err) {
+        toast("Export failed: " + (err.message || err));
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg> Export Evidence Brief (.md)`;
+        }
+      }
+    }
+  }
+
+  function handleExportRequest(format) {
+    const tlp = $("adj-tlp") ? $("adj-tlp").value : "TLP:GREEN";
+    if (tlp === "TLP:AMBER" || tlp === "TLP:RED") {
+      pendingExportAction = () => executeExport(format);
+      const isRed = tlp === "TLP:RED";
+      $("tlp-head").textContent = isRed ? "TLP:RED RESTRICTED EXPORT" : "TLP:AMBER RESTRICTED EXPORT";
+      $("tlp-head").parentElement.style.color = isRed ? "var(--red)" : "var(--amber)";
+      $("tlp-warning-box").style.background = isRed ? "var(--red-bg)" : "var(--amber-bg)";
+      $("tlp-warning-box").style.borderColor = isRed ? "#f3b9b3" : "#e2cb92";
+      $("tlp-warning-box").style.color = isRed ? "var(--red)" : "#784500";
+      $("tlp-warning-headline").textContent = `${tlp} Restricted Dissemination Warning`;
+      $("tlp-warning-msg").textContent = isRed
+        ? "TLP:RED: Strictly confidential intelligence. Dissemination is restricted exclusively to named individual recipients in this exchange. External transmission or unencrypted distribution is strictly prohibited."
+        : "TLP:AMBER: Restricted intelligence. Dissemination is limited to participant organizations and operational partners with an explicit need-to-know.";
+      $("tlp-modal").classList.add("on");
+    } else {
+      executeExport(format);
+    }
+  }
+
+  const btnMd = $("btn-export-brief");
+  if (btnMd) btnMd.addEventListener("click", () => handleExportRequest("md"));
+  const btnJson = $("btn-export-json");
+  if (btnJson) btnJson.addEventListener("click", () => handleExportRequest("json"));
 
   const showEv=k=>{
     const arr=k==="s"?sup:con;
@@ -507,6 +745,15 @@ async function submitReport(){
 }
 
 /* ---------------- wire up ---------------- */
+function closeTlpModal(){ $("tlp-modal").classList.remove("on"); pendingExportAction = null; }
+$("close-tlp-modal").addEventListener("click", closeTlpModal);
+$("cancel-tlp-export").addEventListener("click", closeTlpModal);
+$("confirm-tlp-export").addEventListener("click", ()=>{
+  $("tlp-modal").classList.remove("on");
+  if(pendingExportAction){ const act = pendingExportAction; pendingExportAction = null; act(); }
+});
+$("tlp-modal").addEventListener("click", e=>{ if(e.target.id==="tlp-modal") closeTlpModal(); });
+
 buildScenarios(); loadHealth();
 Object.entries(PRESET_REPORTS).forEach(([k,v])=>{const o=document.createElement("option");o.value=k;o.textContent=v.title;$("u-pre").appendChild(o)});
 $("u-pre").addEventListener("change",e=>fillPreset(e.target.value));
@@ -518,8 +765,8 @@ $("cancel-ingest").addEventListener("click",closeModal);
 $("submit-ingest").addEventListener("click",submitReport);
 $("modal").addEventListener("click",e=>{if(e.target.id==="modal")closeModal()});
 document.addEventListener("keydown",e=>{
-  if(e.key==="Escape")closeModal();
-  if(document.activeElement===$("q")||$("modal").classList.contains("on")||e.ctrlKey||e.metaKey||e.altKey)return;
+  if(e.key==="Escape"){ closeModal(); closeTlpModal(); }
+  if(document.activeElement===$("q")||$("modal").classList.contains("on")||$("tlp-modal").classList.contains("on")||e.ctrlKey||e.metaKey||e.altKey)return;
   const i=parseInt(e.key,10); if(i>=1&&i<=SCENARIOS.length)run(SCENARIOS[i-1].q);
 });
 const qp=new URLSearchParams(location.search).get("q"); if(qp){$("q").value=qp;run(qp)}

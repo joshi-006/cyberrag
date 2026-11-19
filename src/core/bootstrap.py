@@ -20,11 +20,15 @@ logger = logging.getLogger(__name__)
 MANIFEST_VERSION = 1
 
 
-def sha256_file(path: Path, chunk: int = 1 << 20) -> str:
+def sha256_file(path: Path, chunk: int = 1 << 20, normalize_newlines: bool = False) -> str:
     h = hashlib.sha256()
     with open(path, "rb") as f:
-        for block in iter(lambda: f.read(chunk), b""):
-            h.update(block)
+        if normalize_newlines:
+            content = f.read()
+            h.update(content.replace(b"\r\n", b"\n"))
+        else:
+            for block in iter(lambda: f.read(chunk), b""):
+                h.update(block)
     return h.hexdigest()
 
 
@@ -43,7 +47,11 @@ def build_manifest(settings: Settings) -> Dict[str, Any]:
     for p in required_files(settings):
         if not p.exists():
             raise DataIntegrityError(f"Cannot build manifest: required file missing: {p}", str(p))
-        files[p.relative_to(settings.data_dir).as_posix()] = {"sha256": sha256_file(p), "bytes": p.stat().st_size}
+        files[p.relative_to(settings.data_dir).as_posix()] = {
+            "sha256": sha256_file(p),
+            "sha256_lf": sha256_file(p, normalize_newlines=True),
+            "bytes": p.stat().st_size,
+        }
     return {"version": MANIFEST_VERSION, "files": files}
 
 
@@ -74,12 +82,22 @@ def check_data(settings: Settings) -> Optional[str]:
         if not p.exists():
             raise DataIntegrityError(f"Data file listed in the manifest is missing: {p}", str(p))
         actual = sha256_file(p)
-        if actual != meta.get("sha256"):
-            raise DataIntegrityError(
-                f"Data file {p} does not match data/MANIFEST.json (corrupted or edited). "
-                "Restore the file, or run scripts/build_manifest.py if the change is intentional.",
-                str(p),
-            )
+        expected = meta.get("sha256")
+        expected_lf = meta.get("sha256_lf")
+
+        # Allow exact match, or cross-platform LF-normalized match (handling CRLF vs LF checkout)
+        if actual == expected or (expected_lf and actual == expected_lf):
+            continue
+
+        actual_norm = sha256_file(p, normalize_newlines=True)
+        if actual_norm == expected or (expected_lf and actual_norm == expected_lf):
+            continue
+
+        raise DataIntegrityError(
+            f"Data file {p} does not match data/MANIFEST.json (corrupted or edited). "
+            "Restore the file, or run scripts/build_manifest.py if the change is intentional.",
+            str(p),
+        )
     return manifest_hash(manifest)
 
 

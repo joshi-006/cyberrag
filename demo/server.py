@@ -150,6 +150,22 @@ class ReportIngestionRequest(BaseModel):
     text: str
 
 
+class BriefExportRequest(BaseModel):
+    query: str
+    status: str = "SUPPORTED"
+    confidence_score: float = 0.8
+    consensus_score: Optional[float] = None
+    source_diversity: int = 1
+    analyst_decision: str = "ACCEPT"  # ACCEPT, QUALIFY, NEEDS_MORE_EVIDENCE
+    analyst_notes: str = ""
+    source_reliability: str = "B - Usually reliable"
+    info_credibility: str = "2 - Probably true"
+    tlp_label: str = "TLP:GREEN"  # TLP:CLEAR, TLP:GREEN, TLP:AMBER, TLP:RED
+    supporting_evidence: List[Dict[str, Any]] = []
+    contradicting_evidence: List[Dict[str, Any]] = []
+    conflict_resolution: Optional[Dict[str, Any]] = None
+
+
 @app.on_event("startup")
 async def startup_event():
     # Warm up pipeline in background/on startup
@@ -161,7 +177,14 @@ async def serve_index():
     index_path = Path(__file__).parent / "index.html"
     if not index_path.exists():
         raise HTTPException(status_code=404, detail="index.html not found")
-    return HTMLResponse(content=index_path.read_text(encoding="utf-8"))
+    return HTMLResponse(
+        content=index_path.read_text(encoding="utf-8"),
+        headers={
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Pragma": "no-cache",
+            "Expires": "0",
+        },
+    )
 
 
 @app.get("/api/health")
@@ -436,6 +459,105 @@ async def ingest_report(req: ReportIngestionRequest):
         "extracted_relations": len(extraction.get("relations", [])),
         "new_nodes_added": merged.get("new_nodes_count", 0),
         "new_edges_added": merged.get("new_edges_count", 0),
+    }
+
+
+@app.post("/api/export_brief")
+async def export_evidence_brief(req: BriefExportRequest):
+    """
+    Export evidence brief with:
+    - Target claim & cutoff date
+    - Automated verdict & consensus score
+    - Human analyst decision (accept/qualify/needs_more_evidence)
+    - Analyst notes & caveats
+    - Admiralty source reliability & credibility ratings
+    - TLP sharing label
+    - Sentence-level provenance citations
+    """
+    from datetime import datetime
+    now_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
+
+    dates = [
+        e.get("publication_date") for e in req.supporting_evidence + req.contradicting_evidence
+        if e.get("publication_date")
+    ]
+    cutoff_date = max(dates) if dates else "Undated"
+
+    clean_q = "".join(c if c.isalnum() else "_" for c in req.query)[:35].strip("_")
+    filename = f"CTI_Brief_{clean_q}_{req.tlp_label.replace(':', '_')}.md"
+
+    md_lines = [
+        f"# CTI EVIDENCE BRIEF: {req.query}",
+        f"**Classification**: `{req.tlp_label}`",
+        f"**Admiralty Code**: `{req.source_reliability[:1]}{req.info_credibility[:1]}` ({req.source_reliability} / {req.info_credibility})",
+        f"**Generated**: {now_str}",
+        f"**Corpus Cutoff Date**: {cutoff_date}",
+        "",
+        "---",
+        "",
+        "## 1. Executive Summary & Verdict",
+        f"- **Automated Intelligence Verdict**: **{req.status.upper()}**",
+        f"- **Rule-Based Evidence Score**: {round(req.confidence_score * 100)}% (Rule-based, uncalibrated heuristic over evidence found; not a statistical probability)",
+        f"- **Independent Publishers**: {req.source_diversity}",
+        f"- **Evidence Volume**: {len(req.supporting_evidence)} supporting passage(s), {len(req.contradicting_evidence)} contradicting passage(s)",
+        "",
+        "## 2. Human Analyst Review & Adjudication",
+        f"- **Analyst Review Decision**: **{req.analyst_decision.upper()}** (Human analyst review step; does not validate underlying corpus assertions)",
+        f"- **Source Reliability**: {req.source_reliability}",
+        f"- **Information Credibility**: {req.info_credibility}",
+        "- **Analyst Assessment Notes**:",
+        f"  > {req.analyst_notes if req.analyst_notes.strip() else '_No additional analyst notes recorded._'}",
+        "",
+    ]
+
+    if req.conflict_resolution and req.conflict_resolution.get("resolution_status"):
+        cr = req.conflict_resolution
+        md_lines.extend([
+            "## 3. Conflict Resolution & Temporal Dynamics",
+            f"- **Resolution Status**: `{cr.get('resolution_status')}`",
+            f"- **Temporal Delta**: {cr.get('delta_days', 'N/A')} days",
+            f"- **Analysis**: {cr.get('explanation', 'N/A')}",
+            "",
+        ])
+
+    md_lines.append("## 4. Provenance-Grounded Evidence Citations\n")
+    if req.supporting_evidence:
+        md_lines.append(f"### Supporting Evidence ({len(req.supporting_evidence)})\n")
+        for i, e in enumerate(req.supporting_evidence, 1):
+            src = e.get("source") or "Unknown Publisher"
+            pdate = e.get("publication_date") or "Undated"
+            seg = e.get("segment_id") or e.get("report_id") or "N/A"
+            txt = (e.get("text") or "").replace("\n", " ").strip()
+            md_lines.append(f"{i}. **{src}** ({pdate}) | Segment ID: `{seg}`")
+            md_lines.append(f"   > \"{txt}\"")
+            if "p_entail" in e:
+                md_lines.append(f"   *(DeBERTa-v3 NLI Entailment: {e['p_entail']:.3f})*")
+            md_lines.append("")
+
+    if req.contradicting_evidence:
+        md_lines.append(f"### Contradicting Evidence ({len(req.contradicting_evidence)})\n")
+        for i, e in enumerate(req.contradicting_evidence, 1):
+            src = e.get("source") or "Unknown Publisher"
+            pdate = e.get("publication_date") or "Undated"
+            seg = e.get("segment_id") or e.get("report_id") or "N/A"
+            txt = (e.get("text") or "").replace("\n", " ").strip()
+            md_lines.append(f"{i}. **{src}** ({pdate}) | Segment ID: `{seg}`")
+            md_lines.append(f"   > \"{txt}\"")
+            if "p_contra" in e:
+                md_lines.append(f"   *(DeBERTa-v3 NLI Contradiction: {e['p_contra']:.3f})*")
+            md_lines.append("")
+
+    md_lines.extend([
+        "---",
+        "*Exported from CyberRAG CTI Investigation Workbench · Complete Sentence-Level Provenance Audit Trail Preserved*",
+        "*Caveat: The evidence score is a rule-based heuristic over retrieved sentences, not a calibrated probability. Underlying knowledge graph relations are automatically extracted and unreviewed (human double-annotator precision ~1/3). This brief records an analyst review step over raw evidence citations.*",
+    ])
+
+    return {
+        "status": "success",
+        "filename": filename,
+        "markdown": "\n".join(md_lines),
+        "tlp": req.tlp_label,
     }
 
 
