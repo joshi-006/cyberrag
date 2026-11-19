@@ -19,8 +19,11 @@ logger = logging.getLogger(__name__)
 
 MANIFEST_VERSION = 1
 
+TEXT_SUFFIXES = {".json", ".jsonl", ".txt", ".csv", ".md", ".yaml", ".yml"}
+
 
 def sha256_file(path: Path, chunk: int = 1 << 20, normalize_newlines: bool = False) -> str:
+    """Raw byte hash of a file, with optional newline normalization for compatibility."""
     h = hashlib.sha256()
     with open(path, "rb") as f:
         if normalize_newlines:
@@ -30,6 +33,30 @@ def sha256_file(path: Path, chunk: int = 1 << 20, normalize_newlines: bool = Fal
             for block in iter(lambda: f.read(chunk), b""):
                 h.update(block)
     return h.hexdigest()
+
+
+def sha256_text_normalized(path: Path, chunk: int = 1 << 20) -> str:
+    """Hash with CRLF folded to LF, so a Windows and a Unix checkout of the same file agree."""
+    h = hashlib.sha256()
+    pending = b""
+    with open(path, "rb") as f:
+        for block in iter(lambda: f.read(chunk), b""):
+            block = pending + block
+            # Hold back a trailing CR: its LF may start the next block.
+            if block.endswith(b"\r"):
+                block, pending = block[:-1], b"\r"
+            else:
+                pending = b""
+            h.update(block.replace(b"\r\n", b"\n"))
+    h.update(pending)
+    return h.hexdigest()
+
+
+def content_hash(path: Path) -> str:
+    """Manifest hash: line-ending independent for text files, raw bytes for everything else."""
+    if path.suffix.lower() in TEXT_SUFFIXES:
+        return sha256_text_normalized(path)
+    return sha256_file(path)
 
 
 def required_files(settings: Settings) -> List[Path]:
@@ -48,8 +75,8 @@ def build_manifest(settings: Settings) -> Dict[str, Any]:
         if not p.exists():
             raise DataIntegrityError(f"Cannot build manifest: required file missing: {p}", str(p))
         files[p.relative_to(settings.data_dir).as_posix()] = {
-            "sha256": sha256_file(p),
-            "sha256_lf": sha256_file(p, normalize_newlines=True),
+            "sha256": content_hash(p),
+            "sha256_lf": sha256_text_normalized(p),
             "bytes": p.stat().st_size,
         }
     return {"version": MANIFEST_VERSION, "files": files}
@@ -81,16 +108,24 @@ def check_data(settings: Settings) -> Optional[str]:
         p = settings.data_dir / rel
         if not p.exists():
             raise DataIntegrityError(f"Data file listed in the manifest is missing: {p}", str(p))
-        actual = sha256_file(p)
         expected = meta.get("sha256")
         expected_lf = meta.get("sha256_lf")
+        allowed = {expected}
+        if expected_lf:
+            allowed.add(expected_lf)
 
-        # Allow exact match, or cross-platform LF-normalized match (handling CRLF vs LF checkout)
-        if actual == expected or (expected_lf and actual == expected_lf):
-            continue
+        # Accept either line-ending independent hash, raw byte hash, or normalized hash
+        actual_content = content_hash(p)
+        actual_raw = sha256_file(p)
+        actual_norm = sha256_text_normalized(p)
 
-        actual_norm = sha256_file(p, normalize_newlines=True)
-        if actual_norm == expected or (expected_lf and actual_norm == expected_lf):
+        if (
+            actual_content in allowed
+            or actual_raw in allowed
+            or actual_norm in allowed
+            or (expected in (actual_content, actual_raw, actual_norm))
+            or (expected_lf and expected_lf in (actual_content, actual_raw, actual_norm))
+        ):
             continue
 
         raise DataIntegrityError(
@@ -117,8 +152,12 @@ def load_overlay(settings: Settings) -> List[Dict[str, Any]]:
     return docs
 
 
-def build_service(settings: Settings):
-    """Construct the full production service (loads models once)."""
+def build_service(settings: Settings, verifier=None):
+    """Construct the full production service (loads models once).
+
+    ``verifier`` lets a host that already loaded the NLI model (the workbench)
+    share it instead of holding a second copy in memory.
+    """
     from src.core.service import VerificationService
 
     mhash = check_data(settings)
@@ -143,13 +182,13 @@ def build_service(settings: Settings):
             "Run `python scripts/download_models.py` once while online.",
         ) from exc
 
-    verifier = None
-    try:
-        from src.verification.evidence_verifier import CTIEvidenceVerifier
+    if verifier is None:
+        try:
+            from src.verification.evidence_verifier import CTIEvidenceVerifier
 
-        verifier = CTIEvidenceVerifier(model_name=settings.nli_model)
-    except Exception as exc:
-        logger.error("NLI verifier unavailable (%s). verify_* will return VERIFIER_UNAVAILABLE.", exc)
+            verifier = CTIEvidenceVerifier(model_name=settings.nli_model)
+        except Exception as exc:
+            logger.error("NLI verifier unavailable (%s). verify_* will return VERIFIER_UNAVAILABLE.", exc)
 
     llm = None
     if settings.llm_enabled:

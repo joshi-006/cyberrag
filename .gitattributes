@@ -1,4 +1,4 @@
-# Enforce LF line endings for all text files, json, jsonl, and manifests
+# Keep data and text files byte-identical across Windows and Unix checkouts.
 # Ensures SHA-256 integrity checksums in data/MANIFEST.json remain consistent on clean clones across all operating systems.
 * text=auto eol=lf
 
@@ -6,6 +6,8 @@ data/*.json text eol=lf
 data/*.jsonl text eol=lf
 data/knowledge/*.json text eol=lf
 data/MANIFEST.json text eol=lf
+*.json text eol=lf
+*.jsonl text eol=lf
 *.py text eol=lf
 *.md text eol=lf
 *.html text eol=lf
