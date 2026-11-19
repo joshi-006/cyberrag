@@ -366,6 +366,36 @@ async def run_investigation(req: QueryRequest):
     }
 
 
+class CheckClaimsRequest(BaseModel):
+    queries: List[str]
+
+
+@app.post("/api/check_claims")
+async def check_claims(req: CheckClaimsRequest):
+    """Re-verify watched claims with the same agent pipeline as /api/investigate.
+
+    Uses the live workbench index, so reports added with /api/ingest_report are
+    taken into account. Returns a compact verdict per claim (max 20).
+    """
+    queries = [q.strip() for q in req.queries if isinstance(q, str) and q.strip()][:20]
+    if not queries:
+        raise HTTPException(status_code=400, detail="queries must contain 1-20 non-empty claims")
+    _, agent = get_pipeline_and_agent()
+    out = []
+    for q in queries:
+        try:
+            r = agent.run(q[:500])
+            out.append({
+                "query": q, "status": r.status, "supporting": len(r.supporting_evidence),
+                "contradicting": len(r.contradicting_evidence), "source_diversity": r.source_diversity,
+                "score": round(float(r.confidence_score or 0), 4),
+            })
+        except Exception as exc:  # one bad claim must not fail the whole re-check
+            logger.warning("check_claims failed for %r: %s", q, exc)
+            out.append({"query": q, "status": "ERROR", "error": str(exc)[:200]})
+    return {"results": out}
+
+
 @app.post("/api/ingest_report")
 async def ingest_report(req: ReportIngestionRequest):
     """Dynamically ingest a threat report into in-memory Knowledge Graph and Retriever."""

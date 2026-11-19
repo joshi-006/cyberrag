@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.4.0 - Entity questions, watchlist, PDF report
+
+### Added
+- `src/analyst/ask.py` + `POST /api/v1/ask`: answers what / which / who questions with graph candidates (relation, direction and category from the wording), each re-verified with the NLI pipeline. The workbench routes such questions here automatically; yes/no claims still go to the investigation.
+- Watchlist in the workbench (browser storage, up to 20 claims) and `POST /api/check_claims`, which re-runs the workbench agent for watched claims (max 20). Watched claims are re-checked automatically after *Add a report* and verdict changes are flagged.
+- Print layout and *Print / Save PDF* button for investigations (full evidence, time-machine table, limits).
+
+### Fixed
+- Graph tools resolved generic names through the alias registry first, so "government" mapped to an unlinked "Municipal Governments" entry; an exact name match on a linked node now wins.
+- Long unbroken strings (URLs, identifiers) in quoted evidence could widen the page on phones; they now wrap.
+- Tests: 15 more (168 total).
+
 ## 1.3.0 - Connection finder and comparison
 
 ### Added

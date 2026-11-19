@@ -340,3 +340,12 @@ def compare(req: CompareRequest, format: str = "json"):  # noqa: A002
             return _download(json.dumps(layer, indent=2), _safe_filename(f"{label}_attack_overlap", "json"), "application/json")
         return cmp
     return _call(run)
+
+
+# ------------------------------------------------------------------ entity questions
+@router.post("/ask")
+def ask(req: QuestionRequest):
+    """'What does APT28 target?' / 'Who uses Cobalt Strike?': graph candidates, each NLI-verified."""
+    from src.analyst.ask import answer
+
+    return _call(lambda: answer(_svc(), req.question))

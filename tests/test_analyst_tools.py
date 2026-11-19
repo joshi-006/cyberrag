@@ -473,3 +473,68 @@ def test_compare_validation_and_exports():
 def test_list_entities_only_linked():
     names = {e["name"] for e in graphtools.list_entities(_GraphService())}
     assert "Lonely" not in names and {"A", "B", "HUB"} <= names
+
+
+# ------------------------------------------------------------------ entity questions
+from src.analyst import ask  # noqa: E402
+
+
+@pytest.mark.parametrize("q,entity,expected", [
+    ("What does APT28 target?", "APT28", ("TARGETS", False, None)),
+    ("Who uses Cobalt Strike?", "Cobalt Strike", ("USES", True, None)),
+    ("Which malware does Emotet use?", "Emotet", ("USES", False, "Malware")),
+    ("What techniques does Leviathan use?", "Leviathan", ("USES_TECHNIQUE", False, "Technique")),
+    ("Which groups target government?", "government", ("TARGETS", True, "ThreatActor")),
+    ("Which CVEs does Lazarus exploit?", "Lazarus", ("EXPLOITS", False, "CVE")),
+    ("What does TrickBot deliver?", "TrickBot", ("USES", False, None)),
+    ("Tell me about Winnti", "Winnti", (None, False, None)),
+])
+def test_parse_entity_question(q, entity, expected):
+    p = ask.parse(q, entity)
+    assert (p["relation"], p["inbound"], p["category"]) == expected
+
+
+def test_is_entity_question():
+    assert ask.is_entity_question("What does APT28 target?")
+    assert ask.is_entity_question("who uses Cobalt Strike")
+    assert not ask.is_entity_question("Does APT28 use Zebrocy?")
+
+
+class _AskService(_GraphService):
+    def __init__(self, entities):
+        super().__init__()
+        self.planner = SimpleNamespace(plan=lambda q: (SimpleNamespace(entities=entities), []))
+
+    def verify_claim(self, s, r, o, use_llm_summary=True):
+        return _v(status="SUPPORTED" if o == "X" else "INSUFFICIENT_EVIDENCE", tier="SINGLE_SOURCE" if o == "X" else "NONE",
+                  sup_dates=("2021-01-01",) if o == "X" else ())
+
+
+def test_answer_outbound_and_order():
+    r = ask.answer(_AskService(["B"]), "What does B target?")
+    assert r["relation"] == "TARGETS" and [a["object"] for a in r["answers"]] == ["X"]
+    assert r["answers"][0]["status"] == "SUPPORTED" and r["confirmed"] == 1
+    assert r["answers"][0]["quote"]["publisher"] == "P"
+
+
+def test_answer_inbound_and_profile():
+    r = ask.answer(_AskService(["T"]), "Who uses T?")
+    assert sorted(a["subject"] for a in r["answers"]) == ["A", "B"] and all(a["object"] == "T" for a in r["answers"])
+    prof = ask.answer(_AskService(["B"]), "Tell me about B")
+    assert {(a["relation"], a["object"]) for a in prof["answers"]} == {("USES", "T"), ("TARGETS", "X"), ("USES_TECHNIQUE", "T1566 - Phishing")}
+    assert prof["answers"][0]["object"] == "X"  # confirmed answers first
+
+
+def test_answer_errors():
+    from src.core.errors import EntityNotFoundError, InvalidInputError
+
+    with pytest.raises(InvalidInputError):
+        ask.answer(_AskService([]), "What does it do?")
+    with pytest.raises(EntityNotFoundError):
+        ask.answer(_AskService(["Nobody"]), "What does Nobody target?")
+
+
+def test_resolve_prefers_exact_linked_name():
+    svc = _GraphService()
+    svc._find_node = lambda name: svc.nodes["Malware::Lonely"]  # alias resolver points somewhere unlinked
+    assert graphtools.resolve_node(svc, "hub")["id"] == "Organization::HUB"

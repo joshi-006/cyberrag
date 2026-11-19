@@ -262,6 +262,11 @@ Open `http://localhost:8501` in your browser. Select any of the preset scenarios
 ### Verdict Time Machine
 Every verdict in the workbench gets a **time machine**: a date slider whose stops are the publication dates of the evidence. Each stop re-runs verification with `as_of_date`, using only reports published on or before that day, and shows which passages appeared on that date; the play button replays the whole history. It answers "what did the reports say when this decision was made?". The time machine uses the core `VerificationService` (the same engine as the API and MCP server), whose conflict label can differ from the workbench agent's banner. Endpoint: `GET /api/v1/timetravel` (returns the stops; each is fetched with `POST /api/v1/verify_claim` and `as_of_date`).
 
+### Entity Questions, Watchlist and PDF Report
+- **Entity questions** (`POST /api/v1/ask`): typing a question that starts with *what / which / who / tell me about* (e.g. "What does APT28 target?", "Who uses Cobalt Strike?", "Which groups target government?") returns a list of answers instead of a yes/no verdict. The relation and its direction come from the wording, candidates come from the knowledge graph, and each one is re-verified against the source passages; confirmed answers are listed first, each with a quote and an "Open investigation" link.
+- **Watchlist**: "☆ Watch this claim" on any verdict pins it (up to 20, stored in the browser). Whenever a report is added with *+ Add a report*, every watched claim is re-checked with the same pipeline as the workbench (`POST /api/check_claims`), and verdict changes are announced with a badge, e.g. *Does Sandworm use Cyclops Blink?: Insufficient evidence → Verified after adding "Sandworm deploys Cyclops Blink"*.
+- **Print / Save PDF**: a print layout of an investigation with a report header, the verdict, the evidence timeline, the full supporting and contradicting evidence (simulated records tagged), the verdict-over-time table from the time machine, and the stated limits. Use the browser's "Save as PDF".
+
 ### Connection Finder and Comparison
 - **Connect entities** (`POST /api/v1/connect`): the shortest chains of relations linking two entities in the knowledge graph (up to 5 hops). Paths through generic hubs such as "government" are weighted down so specific links come first. Every hop shows its source sentence, publisher and date, and whether the NLI verifier finds that the text states it; the paths are drawn on a graph with the selected path highlighted. Example: *Emotet → Cobalt Strike ← TrickBot → Ryuk*.
 - **Compare** (`POST /api/v1/compare`, `?format=csv` / `?format=layer`): 2-3 actors or malware families side by side as a matrix of what they use, are used by, target, exploit and which ATT&CK techniques they share, with the source sentence on every cell. Exports CSV and an ATT&CK Navigator layer scored by how many of the entities use each technique.
@@ -286,7 +291,7 @@ The same `VerificationService` also backs `POST /api/v1/verify_claim`, `/verify_
 
 ### Run the Test Suite
 ```bash
-# Full suite (153 tests: unit, real-model end-to-end, REST API)
+# Full suite (168 tests: unit, real-model end-to-end, REST API)
 python -m pytest
 
 # Legacy unittest runner (the unittest-style subset)

@@ -172,7 +172,35 @@ footer{border-top:1px solid var(--line);padding:18px 0 30px;color:var(--muted);f
 .xbtn{border:0;background:none;font-size:22px;color:var(--muted);line-height:1}
 .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--navy);color:#fff;padding:12px 18px;border-radius:12px;box-shadow:var(--shadow);opacity:0;pointer-events:none;transition:.25s;z-index:60;max-width:92vw}
 .toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
-@media print{header .chips,.querybox,.act,.xrow{display:none}}
+.printonly{display:none}
+.watchbtn.on{background:var(--navy);color:#fff;border-color:var(--navy)}
+.wbadge{display:inline-grid;place-items:center;min-width:18px;height:18px;border-radius:9px;background:var(--red);color:#fff;font-size:11px;font-weight:700;padding:0 5px;margin-left:6px}
+.wcount{color:var(--muted);font-weight:600;margin-left:4px}
+.witem{border:1.5px solid var(--line);border-radius:11px;padding:10px 12px;display:grid;gap:4px;background:#fff}
+.witem.changed{border-color:var(--amber);box-shadow:0 0 0 2px var(--amber-bg)}
+.witem .wt{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
+.witem .wq{font-weight:650;cursor:pointer;color:var(--ink);background:none;border:0;padding:0;text-align:left;font-size:14px}
+.witem .wq:hover{color:var(--blue)}
+.witem .wm{font-size:12px;color:var(--muted)}
+.wchg{font-size:12.5px;color:var(--amber);font-weight:650}
+.ans,.hop,.ev .txt,.witem{overflow-wrap:anywhere}
+.ans{border:1px solid var(--line);border-left:5px solid var(--c);border-radius:12px;padding:12px 14px;background:#fff;margin-bottom:10px}
+.ans .at{display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap}
+.ans .an{font-weight:700;font-size:15.5px}
+.ans .aq{font-size:13.5px;color:#334155;margin-top:6px}
+.ans .am{font-size:12px;color:var(--muted);margin-top:4px}
+@media print{
+  @page{margin:14mm}
+  body{background:#fff;font-size:12px}
+  header,.querybox,.act,.xrow,.tabs,#evbody,.evpanel,.note,footer,.modal,.drawer,.toast,.tmrow,.ticks,#tm-newl,#tm-new,.more,.watchbtn{display:none!important}
+  .wrap{max-width:none;padding:0}
+  main{padding:0}
+  .panel,.ev,.verdict{box-shadow:none!important;break-inside:avoid}
+  .grid{display:block}.grid>div>section{margin-top:12px}
+  #graph{height:320px}
+  .printonly{display:block!important}
+  .verdict{background:#fff!important}
+}
 
 /* analyst tools */
 .qbtns{display:flex;gap:8px;flex-wrap:wrap}
@@ -302,6 +330,7 @@ button.cell{cursor:pointer}button.cell:hover{box-shadow:0 0 0 3px rgba(15,23,42,
     <div class="qmeta">
       <span class="lbl">Try a scenario <span style="text-transform:none;letter-spacing:0;font-weight:500">(keys 1–6)</span></span>
       <div class="qbtns">
+        <button class="btn ghost" id="open-watch" type="button">Watchlist<span class="wcount" id="wcount"></span><span id="wbadge"></span></button>
         <button class="btn ghost" id="open-conn" type="button" data-tab="conn">Connect entities</button>
         <button class="btn ghost" id="open-cmp" type="button" data-tab="cmp">Compare</button>
         <button class="btn ghost" id="open-tools" type="button" data-tab="fc">Fact-check a report</button>
@@ -405,6 +434,10 @@ button.cell{cursor:pointer}button.cell:hover{box-shadow:0 0 0 3px rgba(15,23,42,
 </div>
 
 <!-- entity drawer -->
+<aside class="drawer" id="watch" aria-labelledby="watch-h" aria-hidden="true">
+  <h3><span id="watch-h">Watchlist</span><button class="xbtn" id="close-watch" aria-label="Close">×</button></h3>
+  <div class="in" id="watch-body"></div>
+</aside>
 <aside class="drawer" id="ent" aria-labelledby="ent-h" aria-hidden="true">
   <h3><span id="ent-h">Entity</span><button class="xbtn" id="close-ent" aria-label="Close">×</button></h3>
   <div class="in" id="ent-body"></div>
@@ -475,6 +508,7 @@ async function loadHealth(){
 let busy=false;
 async function run(query){
   query=(query||$("q").value).trim(); if(!query||busy) return;
+  if(ENTITY_Q.test(query)) return runAsk(query);
   $("q").value=query; busy=true; $("go").disabled=true; tm=null;
   try{history.replaceState(null,"","?q="+encodeURIComponent(query))}catch(e){}
   const t0=Date.now();
@@ -547,6 +581,7 @@ function render(d,secs){
     <div>
       <div class="claim">${esc(cp.s)} <span class="rel">${esc(cp.r.replace("_"," "))}</span> ${esc(cp.o)}</div>
       <div class="why">${esc(explain(d))}</div>
+      <div style="margin-top:10px"><button class="xbtn2 watchbtn" id="x-watch" type="button"></button></div>
     </div>
     <div class="metrics">
       <div class="metric"><div class="v">${sup.length}<span style="font-size:15px;color:var(--muted);font-weight:600"> / ${con.length}</span></div><div class="l">Support / Contra</div><small>passages</small></div>
@@ -574,9 +609,9 @@ function render(d,secs){
     html+=`<section class="panel tm" id="tm" style="margin-top:18px"><h3><span>Time machine <span style="text-transform:none;letter-spacing:0;font-weight:500">what did the reports say on a given date?</span></span><span style="text-transform:none;letter-spacing:0;font-weight:500;font-size:12px">core verifier · same engine as the API</span></h3><div class="body" id="tmbody"><div class="running"><div class="spin"></div>Finding the dates the evidence was published…</div></div></section>`;
   }
   html+=`<div class="grid"><div>
-    <section class="panel"><h3><span>Evidence</span><div class="tabs"><button class="tab on" data-t="s" type="button">Supporting<span class="n">${sup.length}</span></button><button class="tab" data-t="c" type="button">Contradicting<span class="n">${con.length}</span></button></div></h3>
+    <section class="panel evpanel"><h3><span>Evidence</span><div class="tabs"><button class="tab on" data-t="s" type="button">Supporting<span class="n">${sup.length}</span></button><button class="tab" data-t="c" type="button">Contradicting<span class="n">${con.length}</span></button></div></h3>
       <div class="body" id="evbody"></div></section>
-    <section class="panel" style="margin-top:18px"><h3><span>Analyst brief</span><span class="xrow"><button class="xbtn2" id="x-md" type="button" title="Markdown brief with verdict, evidence, sources and decision trace">Download brief (.md)</button><button class="xbtn2" id="x-stix" type="button" title="STIX 2.1 bundle: relationships for supported claims plus a verdict note">Export STIX 2.1</button></span></h3><div class="body brief" id="brief"></div></section>
+    <section class="panel" style="margin-top:18px"><h3><span>Analyst brief</span><span class="xrow"><button class="xbtn2" id="x-md" type="button" title="Markdown brief with verdict, evidence, sources and decision trace">Download brief (.md)</button><button class="xbtn2" id="x-stix" type="button" title="STIX 2.1 bundle: relationships for supported claims plus a verdict note">Export STIX 2.1</button><button class="xbtn2" id="x-print" type="button" title="Print-ready report with all evidence; choose “Save as PDF” in the print dialog">Print / Save PDF</button></span></h3><div class="body brief" id="brief"></div></section>
   </div><div>
     <section class="panel"><h3>Knowledge graph <span style="text-transform:none;letter-spacing:0;font-weight:500">around the claim</span></h3><div class="body"><div id="graph"></div><div class="glegend" id="glegend"></div><div class="gnote">Relations are extracted automatically from reports and are unreviewed. Click a node for its profile; drag nodes, scroll to zoom.</div></div></section>
     <section class="panel" style="margin-top:18px"><h3>How the system decided <span style="text-transform:none;letter-spacing:0;font-weight:500">${secs.toFixed(1)}s</span></h3><div class="body" id="trace"></div></section>
@@ -600,6 +635,10 @@ function render(d,secs){
   $("brief").innerHTML=md(d.narrative||"");
   lastInv=d;
   if(cp.r) initTimeMachine(cp);
+  $("out").insertAdjacentHTML("afterbegin",printHeader(d));
+  $("out").insertAdjacentHTML("beforeend",printEvidence(d));
+  syncWatchButton(d); $("x-watch").addEventListener("click",()=>toggleWatch(d));
+  $("x-print").addEventListener("click",()=>window.print());
   $("x-md").addEventListener("click",exportBrief);
   $("x-stix").addEventListener("click",exportStix);
   renderGraph(d.subgraph||{nodes:[],edges:[]},d.matched_entities||[]);
@@ -662,6 +701,7 @@ async function submitReport(){
     const r=await fetch("/api/ingest_report",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({title:$("u-title").value.trim()||"Uploaded CTI report",source:$("u-src").value.trim()||"Analyst submission",publication_date:$("u-date").value||"2024-01-01",text})});
     const j=await r.json(); if(!r.ok) throw new Error(j.detail||r.status);
     closeModal(); toast(`Added “${j.title}”: ${j.extracted_entities} entities, ${j.extracted_relations} relations, +${j.new_nodes_added} graph nodes. Now ask a question about it.`);
+    if(watchList().length) recheckWatch(`after adding “${j.title}”`);
     loadHealth();
   }catch(e){toast("Could not add the report: "+(e.message||e))}
   finally{b.disabled=false;b.textContent="Add to graph"}
@@ -939,6 +979,109 @@ function renderCompare(d,names){
   if(hasTech) $("cmp-layer").addEventListener("click",()=>withBusy($("cmp-layer"),"…",async()=>{const r=await postJSON("/compare?format=layer",{names});saveBlob(await r.blob(),fileNameFrom(r,"layer.json"));toast("Layer downloaded. Open it in ATT&CK Navigator.")}));
 }
 
+/* ---------------- entity questions ---------------- */
+const ENTITY_Q=/^\s*(what|which|who|whom|list|show|tell me about|describe)\b/i;
+const A_STATUS={SUPPORTED:["Confirmed","--green","--green-bg"],CONFLICTING_EVIDENCE:["Conflicting","--red","--red-bg"],CONTRADICTED:["Contradicted","--red","--red-bg"],INSUFFICIENT_EVIDENCE:["Not stated in text","--slate","--slate-bg"],ERROR:["Not checked","--slate","--slate-bg"]};
+async function runAsk(query){
+  busy=true; $("go").disabled=true; tm=null; lastInv=null; $("q").value=query;
+  try{history.replaceState(null,"","?q="+encodeURIComponent(query))}catch(e){}
+  viewLoading(`Answering “${query}” and verifying each answer against the reports…`);
+  try{ renderAsk(await (await postJSON("/ask",{question:query})).json()); }
+  catch(e){ viewError(e); }
+  finally{ busy=false; $("go").disabled=false; }
+}
+function renderAsk(d){
+  const A=d.answers, ent=d.entity;
+  const relTxt=d.relation?d.relation.replace(/_/g," ").toLowerCase():"related to";
+  const head=`<section class="panel verdict" style="--c:var(--blue);--bg2:#e0f0fa">
+    <div class="badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M9 9a3 3 0 115 2c-1 .8-2 1.2-2 2.5M12 17v.5"/><circle cx="12" cy="12" r="9"/></svg><span class="st">${A.length} ANSWER${A.length===1?"":"S"}</span></div>
+    <div><div class="claim">${esc(d.question)}</div><div class="why">${A.length?`${d.confirmed} of ${A.length} answers are confirmed by the source text${d.truncated?` (strongest ${A.length} of ${d.total_candidates} shown)`:""}. The rest are graph links the verifier could not confirm or that the reports dispute.`:`The knowledge graph has no “${esc(relTxt)}” relations for ${esc(ent.name)}${d.category?` with a ${esc(d.category)}`:""}. Try a broader question, e.g. “Tell me about ${esc(ent.name)}”.`}</div>
+      <div style="margin-top:10px"><button class="xbtn2" id="ask-ent" type="button">${esc(ent.name)} profile ›</button></div></div>
+    <div class="metrics"><div class="metric"><div class="v">${d.confirmed}</div><div class="l">Confirmed</div><small>by source text</small></div><div class="metric"><div class="v">${A.length}</div><div class="l">Answers</div><small>checked</small></div><div class="metric"><div class="v">${esc((ent.category||"").replace("ThreatActor","Actor"))}</div><div class="l">Entity</div><small>${esc(ent.name)}</small></div></div></section>`;
+  const cards=A.map((a,i)=>{const L=A_STATUS[a.status]||A_STATUS.ERROR; const q=a.quote;
+    return `<div class="ans" style="--c:var(${L[1]})"><div class="at"><span class="an">${esc(a.entity.name)} <span style="font-weight:500;color:var(--muted);font-size:13px">· ${esc(a.subject)} ${esc(a.relation.replace(/_/g," ").toLowerCase())} ${esc(a.object)}</span></span><span class="pill" style="background:var(${L[2]});color:var(${L[1]})">${L[0]}${a.support_tier==="CORROBORATED"?" · multi-source":""}${a.hedged_only?" · hedged":""}</span></div>
+      ${q?`<div class="aq">“${esc(cleanText(q.text).slice(0,280))}${q.text.length>280?"…":""}”</div><div class="am">${esc(q.publisher||"Unknown")} · ${esc(fmtDate(q.date))}${q.synthetic?' · <span class="tag sim">Simulated</span>':""} · ${a.supporting} supporting / ${a.contradicting} contradicting · <button class="vlink" type="button" data-i="${i}">Open investigation ›</button></div>`
+        :`<div class="am">No passage states it. Graph source: ${esc(a.graph_evidence.publisher||"Unknown")} · ${esc(fmtDate(a.graph_evidence.date))} · <button class="vlink" type="button" data-i="${i}">Open investigation ›</button></div>`}</div>`}).join("");
+  $("out").innerHTML=head+(A.length?`<section class="panel" style="margin-top:18px"><h3><span>Answers</span><span style="text-transform:none;letter-spacing:0;font-weight:500">confirmed first</span></h3><div class="body">${cards}<div class="hint">${esc(d.note)}</div></div></section>`:"");
+  $("ask-ent").addEventListener("click",()=>openEntity(ent.name));
+  $("out").querySelectorAll(".vlink[data-i]").forEach(b=>b.addEventListener("click",()=>{const a=A[+b.dataset.i];run(askOf(a.subject,a.relation,a.object,false))}));
+}
+
+/* ---------------- watchlist (kept in this browser) ---------------- */
+const WKEY="cyberrag.watchlist.v1";
+function watchList(){ try{ const v=JSON.parse(localStorage.getItem(WKEY)||"[]"); return Array.isArray(v)?v:[]; }catch(e){ return []; } }
+function saveWatch(list){ try{ localStorage.setItem(WKEY,JSON.stringify(list.slice(0,20))); }catch(e){ toast("This browser blocked storage, so the watchlist cannot be saved."); } updateWatchCount(); }
+const wkey=q=>q.trim().toLowerCase();
+function updateWatchCount(){
+  const L=watchList(); $("wcount").textContent=L.length?`(${L.length})`:"";
+  const ch=L.filter(w=>w.changed).length; $("wbadge").innerHTML=ch?`<span class="wbadge" title="${ch} verdict change${ch>1?"s":""}">${ch}</span>`:"";
+}
+function syncWatchButton(d){
+  const b=$("x-watch"); if(!b) return; const on=watchList().some(w=>wkey(w.q)===wkey(d.query));
+  b.classList.toggle("on",on); b.textContent=on?"★ Watching this claim":"☆ Watch this claim";
+  b.title=on?"Remove from the watchlist":"Re-check this claim automatically whenever a report is added";
+}
+function toggleWatch(d){
+  let L=watchList(); const i=L.findIndex(w=>wkey(w.q)===wkey(d.query));
+  if(i>=0){ L.splice(i,1); toast("Removed from the watchlist."); }
+  else{ if(L.length>=20){toast("The watchlist holds up to 20 claims.");return}
+    L.unshift({q:d.query,status:d.status,sup:(d.supporting_evidence||[]).length,con:(d.contradicting_evidence||[]).length,at:new Date().toISOString(),history:[]});
+    toast("Watching. It is re-checked automatically whenever you add a report."); }
+  saveWatch(L); syncWatchButton(d); if($("watch").classList.contains("on")) renderWatch();
+}
+function openWatch(){ $("watch").classList.add("on"); $("watch").setAttribute("aria-hidden","false"); renderWatch(); }
+function closeWatch(){ $("watch").classList.remove("on"); $("watch").setAttribute("aria-hidden","true"); }
+const stLabel=s=>(STATUS[s]||{label:s==="ERROR"?"Error":s}).label;
+const stColor=s=>(STATUS[s]||{c:"--slate"}).c;
+const ago=iso=>{const m=Math.round((Date.now()-new Date(iso).getTime())/60000);return m<1?"just now":m<60?m+" min ago":m<1440?Math.round(m/60)+" h ago":new Date(iso).toLocaleDateString("en-GB")};
+function renderWatch(){
+  const L=watchList();
+  $("watch-body").innerHTML=(L.length?`<div class="xrow"><button class="xbtn2" id="w-recheck" type="button">Re-check all now</button><span class="hint">Also runs automatically after “Add a report”.</span></div>`:"")+
+    (L.map((w,i)=>`<div class="witem${w.changed?" changed":""}"><div class="wt"><button class="wq" type="button" data-i="${i}">${esc(w.q)}</button><button class="xbtn" type="button" data-rm="${i}" aria-label="Stop watching" style="font-size:18px">×</button></div>
+      <div><span class="pill" style="background:var(--soft);color:var(${stColor(w.status)})">${esc(stLabel(w.status))}</span> <span class="wm">${w.sup??"–"} supporting / ${w.con??"–"} contradicting · checked ${esc(ago(w.at))}</span></div>
+      ${w.changed?`<div class="wchg">Changed from ${esc(stLabel(w.changed.from))} ${esc(w.changed.why||"")}</div>`:""}</div>`).join("")||
+    `<div class="empty" style="padding:18px">No watched claims yet.<div class="hint" style="margin-top:6px">Open any verdict and click “☆ Watch this claim”. Watched claims are re-checked whenever you add a report, and you are told if a verdict changes.</div></div>`);
+  $("watch-body").querySelectorAll(".wq").forEach(b=>b.addEventListener("click",()=>{const L2=watchList();const w=L2[+b.dataset.i];if(w.changed){w.changed=null;saveWatch(L2)}closeWatch();run(w.q)}));
+  $("watch-body").querySelectorAll("[data-rm]").forEach(b=>b.addEventListener("click",()=>{const L2=watchList();L2.splice(+b.dataset.rm,1);saveWatch(L2);renderWatch();if(lastInv)syncWatchButton(lastInv)}));
+  const rc=$("w-recheck"); if(rc) rc.addEventListener("click",()=>recheckWatch("on manual re-check"));
+}
+let rechecking=false;
+async function recheckWatch(why){
+  const L=watchList(); if(!L.length||rechecking) return; rechecking=true;
+  const rc=$("w-recheck"); if(rc){rc.disabled=true;rc.textContent="Re-checking…"}
+  toast(`Re-checking ${L.length} watched claim${L.length>1?"s":""}…`);
+  try{
+    const r=await fetch("/api/check_claims",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({queries:L.map(w=>w.q)})});
+    const j=await r.json(); if(!r.ok) throw new Error(j.detail||r.status);
+    const fresh=watchList(); const changes=[];
+    j.results.forEach(res=>{const w=fresh.find(x=>wkey(x.q)===wkey(res.query)); if(!w||res.status==="ERROR") return;
+      if(res.status!==w.status){ w.changed={from:w.status,why}; (w.history=w.history||[]).push({from:w.status,to:res.status,at:new Date().toISOString(),why}); changes.push(`${w.q}: ${stLabel(w.status)} → ${stLabel(res.status)}`); }
+      w.status=res.status; w.sup=res.supporting; w.con=res.contradicting; w.at=new Date().toISOString(); });
+    saveWatch(fresh);
+    toast(changes.length?`Verdict changed ${why}: ${changes.join(" · ")}`:`Watchlist re-checked: no verdict changed.`);
+    if(changes.length&&!$("watch").classList.contains("on")) openWatch(); else if($("watch").classList.contains("on")) renderWatch();
+    if(lastInv) syncWatchButton(lastInv);
+  }catch(e){ toast("Could not re-check the watchlist: "+(e.message||e)); }
+  finally{ rechecking=false; const b=$("w-recheck"); if(b){b.disabled=false;b.textContent="Re-check all now"} }
+}
+
+/* ---------------- print / PDF ---------------- */
+function printHeader(d){
+  return `<div class="printonly" style="margin-bottom:12px;border-bottom:2px solid #12203a;padding-bottom:8px"><div style="font-size:20px;font-weight:750">CyberRAG verification report</div>
+    <div style="color:#5b6b82;font-size:12px">${esc(d.query)} · generated ${esc(new Date().toLocaleString("en-GB"))} · runs locally; evidence quoted from third-party reports</div></div>`;
+}
+function printEvidence(d){
+  const sec=(title,arr,key,lab)=>`<section class="panel" style="margin-top:14px"><h3>${title} (${arr.length})</h3><div class="body">${arr.length?arr.map(e=>`<div class="ev" style="--c:var(${key==="p_entail"?"--green":"--red"})"><div class="top"><div><span class="src">${esc(e.source||"Unknown")}</span> <span class="date">· ${esc(fmtDate(e.publication_date))}</span>${isSim(e)?' <span class="tag sim">Simulated</span>':""}</div><span class="mono" style="font-size:11px">${lab} ${(e[key]||0).toFixed(2)}</span></div><div class="txt">${esc(cleanText(e.text))}</div><div class="rid mono">${esc(e.segment_id||e.report_id||"")}</div></div>`).join(""):'<div class="hint">None.</div>'}</div></section>`;
+  return `<div class="printonly" id="printx">${sec("Supporting evidence",d.supporting_evidence||[],"p_entail","NLI entailment")}${sec("Contradicting evidence",d.contradicting_evidence||[],"p_contra","NLI contradiction")}<div id="print-tm"></div>
+    <p style="font-size:11px;color:#5b6b82;margin-top:14px">NLI scores measure how well a passage's text matches the claim, not the probability that it is true. Graph relations are extracted automatically and unreviewed.</p></div>`;
+}
+window.addEventListener("beforeprint",()=>{
+  const box=$("print-tm"); if(!box) return;
+  if(!tm||!tm.stops||!Object.keys(tm.snaps).length){box.innerHTML="";return}
+  const rows=tm.stops.map((dt,i)=>{const v=tm.snaps[i+1];return `<tr><td>${esc(fmtDate(dt))}</td><td>${v?esc((TM_STATUS[v.status]||{l:v.status}).l):"not loaded"}</td><td>${v?v.supporting.length+" / "+v.contradicting.length:""}</td></tr>`}).join("");
+  box.innerHTML=`<section class="panel" style="margin-top:14px"><h3>Verdict over time</h3><div class="body"><table class="tbl"><thead><tr><th>As of</th><th>Verdict</th><th>Sup / Con</th></tr></thead><tbody>${rows}</tbody></table></div></section>`;
+});
+
 /* ---------------- time machine ---------------- */
 const TM_STATUS={SUPPORTED:{l:"Supported",c:"var(--green)"},CONTRADICTED:{l:"Contradicted",c:"var(--red)"},CONFLICTING_EVIDENCE:{l:"Conflicting",c:"var(--red)"},INSUFFICIENT_EVIDENCE:{l:"No evidence yet",c:"var(--slate)"}};
 let tm=null;
@@ -1024,8 +1167,11 @@ $("t-run").addEventListener("click",runTool);
 $("t-sample").addEventListener("click",useSample);
 $("t-file").addEventListener("change",loadFile);
 $("close-ent").addEventListener("click",closeEntity);
+$("open-watch").addEventListener("click",openWatch);
+$("close-watch").addEventListener("click",closeWatch);
+updateWatchCount();
 document.addEventListener("keydown",e=>{
-  if(e.key==="Escape"){closeModal();closeTools();closeEntity()}
+  if(e.key==="Escape"){closeModal();closeTools();closeEntity();closeWatch()}
   const typing=/^(INPUT|TEXTAREA|SELECT)$/.test((document.activeElement||{}).tagName||"");
   if(typing||$("modal").classList.contains("on")||$("tools").classList.contains("on")||e.ctrlKey||e.metaKey||e.altKey)return;
   const i=parseInt(e.key,10); if(i>=1&&i<=SCENARIOS.length)run(SCENARIOS[i-1].q);
