@@ -32,43 +32,20 @@ class AgentToolRegistry:
         self.gate = gate or EntityAwareEvidenceGate(expander=self.expander)
 
     def execute_retrieval(
-        self,
-        query_str: str,
-        temporal_scope: Optional[Tuple[str, str]] = None,
-        subject: Optional[str] = None,
-        predicate: Optional[str] = None,
-        obj: Optional[str] = None,
-        enable_claim_conditioned: bool = False,
+        self, query_str: str, temporal_scope: Optional[Tuple[str, str]] = None
     ) -> List[Dict[str, Any]]:
         results = []
         if self.retriever is not None:
-            if enable_claim_conditioned and subject and obj and hasattr(self.retriever, "retrieve_for_claim"):
-                raw = self.retriever.retrieve_for_claim(
-                    subject=subject,
-                    predicate=predicate or "USES",
-                    obj=obj,
-                    natural_query=query_str,
-                    top_k=8,
-                )
-                for it in raw.get("claim_conditioned", []):
+            raw = self.retriever.retrieve(query_str, top_k=8)
+            for k in ("dense", "hybrid"):
+                for it in raw.get(k, []):
                     item = dict(it)
                     item["type"] = "text"
                     results.append(item)
-                for it in raw.get("graph", []):
-                    item = dict(it)
-                    item["type"] = "graph"
-                    results.append(item)
-            else:
-                raw = self.retriever.retrieve(query_str, top_k=8)
-                for k in ("dense", "hybrid"):
-                    for it in raw.get(k, []):
-                        item = dict(it)
-                        item["type"] = "text"
-                        results.append(item)
-                for it in raw.get("graph", []):
-                    item = dict(it)
-                    item["type"] = "graph"
-                    results.append(item)
+            for it in raw.get("graph", []):
+                item = dict(it)
+                item["type"] = "graph"
+                results.append(item)
         else:
             results.append({
                 "type": "text",

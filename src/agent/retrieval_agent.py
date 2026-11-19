@@ -71,17 +71,10 @@ class CyberRAGAgent:
         max_iterations: int = 3,
         temporal_delta_days: int = 90,
         llm_client: Optional[LocalLLMClient] = None,
-        enable_claim_conditioned_retrieval: Optional[bool] = None,
     ):
         self.max_iterations = max_iterations
         self.temporal_delta_days = temporal_delta_days
         self.llm_client = llm_client or LocalLLMClient()
-        if enable_claim_conditioned_retrieval is not None:
-            self.enable_claim_conditioned_retrieval = enable_claim_conditioned_retrieval
-        else:
-            self.enable_claim_conditioned_retrieval = (
-                os.environ.get("CTI_ENABLE_CLAIM_CONDITIONED_RETRIEVAL", "").lower() in ("1", "true", "yes")
-            )
 
         # Ensure active NLI verifier and retriever are present; auto-initialize if not provided
         if verifier is None:
@@ -170,26 +163,14 @@ class CyberRAGAgent:
             current_state = AgentState.RETRIEVAL
 
             iter_query = current_queries[(iteration - 1) % len(current_queries)]
-            retrieved_items = self.tools.execute_retrieval(
-                iter_query,
-                plan.temporal_scope,
-                subject=subject,
-                predicate=predicate,
-                obj=obj,
-                enable_claim_conditioned=self.enable_claim_conditioned_retrieval,
-            )
+            retrieved_items = self.tools.execute_retrieval(iter_query, plan.temporal_scope)
             all_raw_evidence.extend(retrieved_items)
             all_raw_evidence = self.tools.deduplicate_evidence(all_raw_evidence)
 
-            tool_call_name = (
-                "ClaimConditionedRetriever.retrieve_for_claim"
-                if self.enable_claim_conditioned_retrieval
-                else "HybridGraphRAG.retrieve"
-            )
             record_step(
                 state=current_state,
                 action=f"Iteration {iteration}/{self.max_iterations}: Executed hybrid dense-sparse-graph retrieval for '{iter_query}'.",
-                tool_name=tool_call_name,
+                tool_name="HybridGraphRAG.retrieve",
                 tool_in={"query": iter_query, "iteration": iteration},
                 tool_out=f"Retrieved {len(retrieved_items)} items. Total unique pool: {len(all_raw_evidence)} items.",
                 decision_outcome=f"Collected {len(retrieved_items)} candidate segments for entity relevance inspection.",

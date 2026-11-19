@@ -13,7 +13,7 @@
 | **02:30 – 05:00** | **System Architecture** | Multi-stage pipeline: Cyber NLP (NER + clause-aware relation extraction) $\rightarrow$ Typed Knowledge Graph $\rightarrow$ Hybrid Dense/BM25/Graph Retrieval $\rightarrow$ DeBERTa-v3 Cross-Encoder NLI $\rightarrow$ Multi-publisher Claim Aggregator $\rightarrow$ Context Resolver $\rightarrow$ Structured Analyst Workbench. |
 | **05:00 – 10:30** | **Live Interactive Platform Demo** | Run the FastAPI Analyst Workbench (`http://localhost:8080`) across core presets (Corroboration $\rightarrow$ Temporal Supersedence $\rightarrow$ Duplicate Suppression $\rightarrow$ Novel Intel Noise Rejection & Graph Expansion). |
 | **10:30 – 12:30** | **Core Research Contributions** | 1) Clause-aware extraction with vendor & spatial trigger suppression; 2) Intra-publisher duplicate passage detection; 3) 4-tier CTI contradiction taxonomy (`TEMPORAL_SUPERSEDENCE`, `CAMPAIGN_DIVERGENCE`, `GENUINE_ATTRIBUTION_DISPUTE`, `AMBIGUOUS_CONFLICT`); 4) Structured provenance-grounded evidence reporting citing exact report and sentence IDs. |
-| **12:30 – 15:00** | **Evaluation Metrics, Limitations & Q&A** | 1,400 graph nodes, 329 edges, 374 rule-extracted assertions (all unverified), 5,991 corpus segments, 91/91 passing unit tests across 17 test suites, and real-world AnnoCTR empirical benchmark evaluation. |
+| **12:30 – 15:00** | **Evaluation Metrics, Limitations & Q&A** | 1,400 graph nodes, 329 edges, 374 rule-extracted assertions (all unverified), 5,991 corpus segments, 85/85 passing unit tests across 16 test suites, and real-world AnnoCTR empirical benchmark evaluation. |
 
 ---
 
@@ -121,7 +121,7 @@ The interface opens with a clean, warm off-white and royal cobalt blue aesthetic
 
 ## 4. Evaluation Metrics Summary for Slides
 
-* **Automated Test Suite**: **91 / 91 unit and integration tests passing** across 17 test suites (`python run_tests.py`), running 100% offline.
+* **Automated Test Suite**: **85 / 85 unit and integration tests passing** across 16 test suites (`python run_tests.py`), running 100% offline.
 * **Corpus Scale**: 104 authentic threat reports, 5,991 indexed text segments, 2,698 paragraphs.
 * **Knowledge Graph**: 1,400 nodes, 329 edges, 374 rule-extracted unverified assertions, 1,726 MITRE ATT&CK concepts.
 * **AnnoCTR NER Benchmark (Official Test Split, Zero Overlap)**:

@@ -48,8 +48,6 @@ class Settings(BaseSettings):
     llm_retries: int = Field(1, ge=0, le=3)
 
     # Retrieval / verification
-    enable_claim_conditioned_retrieval: bool = False
-    max_per_publisher: int = Field(2, ge=1, le=10)
     top_k: int = Field(10, ge=1, le=50)
     retrieval_pool_k: int = Field(100, ge=5, le=200)
     entail_threshold: float = Field(0.50, gt=0, lt=1)

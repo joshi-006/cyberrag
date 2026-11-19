@@ -211,12 +211,12 @@ An exploratory retrieval ablation comparing baseline hybrid retrieval, LLM query
 > **Methodological Review & Archival**: Methodological review determined that the exploratory v5 retrieval ablation contained a circular dependency: the same hand-curated alias mapping (`KNOWN_ALIASES`) used to generate retrieval gold labels was supplied to the expanded retrieval loop. Consequently, the reported metrics do not represent an unbiased measurement of real-world retrieval quality. Following rigorous empirical standards, this experiment has been archived to `outputs/legacy/` and should not be cited as empirical evidence. A sound, un-aliased retrieval ablation on independent benchmarks (such as AZERG) is documented as planned future work.
 
 ### 6.5 Unit & Integration Test Suite (100% Passing)
-The entire test suite covers all pipeline stages including SQLite KG DB, LLM graph extraction, claim-conditioned retrieval, VerificationService, and MCP server contracts (evaluated live via `python run_tests.py` across 17 suites):
+The entire test suite covers all pipeline stages including SQLite KG DB, LLM graph extraction, VerificationService, and MCP server contracts (evaluated live via `python run_tests.py` across 16 test suites):
 ```
-Ran 91 tests in 52.9s
+Ran 85 tests in 50.1s
 OK
 ```
-*Note: All 91 tests run 100% offline using locally cached model weights (`cross-encoder/nli-deberta-v3-base` and `all-MiniLM-L6-v2`) without external network dependencies.*
+*Note: All 85 tests run 100% offline using locally cached model weights (`cross-encoder/nli-deberta-v3-base` and `all-MiniLM-L6-v2`) without external network dependencies.*
 
 > [!IMPORTANT]
 > **Knowledge Graph Data Caveat**: The bundled SQLite Knowledge Graph (`data/cti_kg.db`) contains 1,400 entities and 374 automatically extracted assertions. All 374 assertions are automatically extracted via syntactic rules and are unreviewed by human analysts (our formal double-annotator human study measured baseline relation precision at approximately 31%–40%, or about one third). Automated extraction must not be mistaken for human gold standard adjudication.
