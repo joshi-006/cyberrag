@@ -604,7 +604,6 @@ function render(d,secs){
     meta=STATUS.WEAK_SUPPORT;
   }
   const cp=claimParts(d); const names=parseEntities(d);
-  const sup=d.supporting_evidence||[], con=d.contradicting_evidence||[], cr=d.conflict_resolution;
   const score=d.consensus_evidence_score??d.confidence_score;
   const gate=(d.execution_trace||[]).find(s=>s.state==="EVIDENCE_INSPECTION");
   const hops=(d.state_history||[]).filter(s=>s==="RETRY_EXPANSION").length;
