@@ -152,6 +152,7 @@ def test_warming_up_returns_503():
     def not_ready():
         raise api_v1.ServiceWarmingUp("loading")
 
+    previous = api_v1._provider
     api_v1.set_service_provider(not_ready)
     try:
         with TestClient(app) as c:
@@ -160,4 +161,42 @@ def test_warming_up_returns_503():
             # IOC extraction needs no models, so it keeps working while the service loads
             assert c.post("/api/v1/iocs", json={"text": "1.1.1.1"}).status_code == 200
     finally:
-        api_v1.set_service_provider(None)
+        api_v1.set_service_provider(previous)
+
+
+def test_timetravel_checkpoints_and_snapshot(client):
+    d = client.get("/api/v1/timetravel", params={"subject": "Emotet", "relation": "USES", "object": "TrickBot"}).json()
+    stops = d["checkpoints"]
+    assert stops == sorted(stops) and len(stops) >= 2
+    first = client.post("/api/v1/verify_claim", json={"subject": "Emotet", "relation": "USES", "object": "TrickBot", "as_of_date": stops[0]}).json()
+    last = client.post("/api/v1/verify_claim", json={"subject": "Emotet", "relation": "USES", "object": "TrickBot", "as_of_date": stops[-1]}).json()
+    assert len(first["supporting"]) + len(first["contradicting"]) <= len(last["supporting"]) + len(last["contradicting"])
+    assert all(e["pub_date"] <= stops[0] for e in first["supporting"] + first["contradicting"] if e["pub_date"])
+
+
+def test_entities_list(client):
+    d = client.get("/api/v1/entities").json()
+    assert len(d["entities"]) == 277 and all(e["degree"] > 0 for e in d["entities"])
+
+
+def test_connect_real_graph(client):
+    r = client.post("/api/v1/connect", json={"a": "APT28", "b": "NATO"})
+    assert r.status_code == 200
+    d = r.json()
+    first = d["paths"][0]
+    assert first["length"] == 1 and first["hops"][0]["verdict"]["status"] == "SUPPORTED"
+    assert first["nodes"][0]["name"] == "APT28" and first["nodes"][-1]["name"] == "NATO"
+    assert client.post("/api/v1/connect", json={"a": "NoSuchThing123", "b": "APT28"}).status_code == 404
+
+
+def test_compare_real_graph_and_exports(client):
+    body = {"names": ["Emotet", "Trickbot", "Dridex"]}
+    d = client.post("/api/v1/compare", json=body).json()
+    assert [e["name"] for e in d["entities"]] == ["Emotet", "Trickbot", "Dridex"]
+    tech = next(g for g in d["groups"] if g["key"] == "techniques")
+    assert any(len(it["shared_by"]) == 3 for it in tech["items"])
+    csv = client.post("/api/v1/compare?format=csv", json=body)
+    assert csv.text.startswith("group,item,category,Emotet,Trickbot,Dridex")
+    layer = json.loads(client.post("/api/v1/compare?format=layer", json=body).text)
+    assert layer["techniques"] and max(t["score"] for t in layer["techniques"]) == 3
+    assert client.post("/api/v1/compare", json={"names": ["Emotet"]}).status_code == 400

@@ -263,3 +263,80 @@ def navigator_report(req: ReportLayerRequest):
     layer = build_layer(req.title, rows, source_label="uploaded report",
                         note="Techniques were extracted automatically from the uploaded report; review before use.")
     return _download(json.dumps(layer, indent=2), _safe_filename(f"{req.title}_attack_layer", "json"), "application/json")
+
+
+# ------------------------------------------------------------------ time machine
+@router.get("/timetravel")
+def timetravel(subject: str, relation: str, object: str, polarity: str = "positive"):  # noqa: A002
+    """Verdict today plus the evidence dates at which it can change (slider stops).
+
+    Each stop is then fetched with ``POST /verify_claim`` and ``as_of_date``.
+    """
+    from src.analyst.timemachine import checkpoints
+
+    def run():
+        v = _svc().verify_claim(subject, relation, object, polarity=polarity, use_llm_summary=False)
+        stops = checkpoints(v)
+        return {
+            "claim": v.claim.model_dump(), "polarity": v.polarity, "today": {
+                "status": v.status, "support_tier": v.support_tier, "supporting": len(v.supporting),
+                "contradicting": len(v.contradicting), "conflict": v.conflict.model_dump(),
+            },
+            "checkpoints": stops,
+            "undated_evidence": sum(1 for e in v.supporting + v.contradicting if not e.pub_date),
+        }
+    return _call(run)
+
+
+# ------------------------------------------------------------------ connection finder & comparison
+class ConnectRequest(BaseModel):
+    a: str
+    b: str
+    max_hops: int = 4
+
+
+class CompareRequest(BaseModel):
+    names: List[str]
+
+
+@router.get("/entities")
+def entities():
+    from src.analyst.graphtools import list_entities
+
+    def run():
+        svc = _svc()
+        cached = getattr(svc, "_entity_list_cache", None)
+        if cached is None:
+            cached = list_entities(svc)
+            svc._entity_list_cache = cached
+        return {"entities": cached}
+    return _call(run)
+
+
+@router.post("/connect")
+def connect(req: ConnectRequest):
+    from src.analyst.graphtools import find_connections
+
+    return _call(lambda: find_connections(_svc(), req.a, req.b, max_hops=req.max_hops))
+
+
+@router.post("/compare")
+def compare(req: CompareRequest, format: str = "json"):  # noqa: A002
+    from src.analyst.graphtools import compare_entities, comparison_csv, overlap_layer
+    from src.analyst.navigator import tactic_map
+
+    def run():
+        svc = _svc()
+        cmp = compare_entities(svc, req.names)
+        label = "_vs_".join(e["name"] for e in cmp["entities"])
+        if format == "csv":
+            return _download(comparison_csv(cmp), _safe_filename(f"compare_{label}", "csv"), "text/csv; charset=utf-8")
+        if format == "layer":
+            registry = getattr(svc, "_registry_cache", None)
+            if registry is None:
+                registry = json.loads(svc.settings.registry_path.read_text(encoding="utf-8"))
+                svc._registry_cache = registry
+            layer = overlap_layer(cmp, tactic_map(registry))
+            return _download(json.dumps(layer, indent=2), _safe_filename(f"{label}_attack_overlap", "json"), "application/json")
+        return cmp
+    return _call(run)

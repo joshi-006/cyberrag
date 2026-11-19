@@ -200,6 +200,58 @@ footer{border-top:1px solid var(--line);padding:18px 0 30px;color:var(--muted);f
 .b-NEW_INTEL{background:#e0f0fa;color:#0b5a82}
 .b-INSUFFICIENT_EVIDENCE,.b-LOOKUP{background:var(--slate-bg);color:var(--slate)}
 
+/* connection finder & comparison */
+.sheet .row.conn{grid-template-columns:1fr 1fr 120px}
+@media(max-width:640px){.sheet .row.conn{grid-template-columns:1fr}}
+.chain{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:4px 0 10px}
+.enode{display:inline-flex;align-items:center;gap:6px;border:1.5px solid var(--line);border-radius:999px;padding:3px 10px;font-weight:650;font-size:13.5px;background:#fff}
+.enode i{width:9px;height:9px;border-radius:50%;display:inline-block}
+.erel{font-size:11px;font-weight:700;letter-spacing:.05em;color:var(--muted);white-space:nowrap}
+.pcard{border:1.5px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:12px;background:#fff;cursor:pointer;transition:.15s}
+.pcard:hover{border-color:#b9c6d8}.pcard.on{border-color:var(--navy);box-shadow:0 0 0 1px var(--navy)}
+.pcard .ph{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:12px;color:var(--muted);font-weight:650;letter-spacing:.04em;text-transform:uppercase}
+.hop{border-top:1px solid var(--line);padding:9px 0 2px;display:grid;gap:4px}
+.hop .hl{display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap;font-size:14px}
+.hop .q{font-size:13px;color:#334155}
+.hop .m{font-size:12px;color:var(--muted)}
+.vlink{background:none;border:0;color:var(--blue);font-weight:600;font-size:12.5px;padding:0}
+#cgraph{height:460px;border-radius:10px;background:#fbfcfe;border:1px solid var(--line)}
+@media(max-width:600px){#cgraph{height:340px}}
+.ecards{display:grid;grid-template-columns:repeat(var(--k),1fr);gap:12px}
+@media(max-width:700px){.ecards{grid-template-columns:1fr}}
+.ecard{border:1px solid var(--line);border-top:5px solid var(--c);border-radius:12px;padding:12px 14px;background:#fff}
+.ecard h4{margin:0;font-size:18px}
+.ecard .m{font-size:12.5px;color:var(--muted);margin-top:2px}
+.mx{width:100%;border-collapse:collapse;font-size:13.5px}
+.mx th{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:6px 8px;border-bottom:1.5px solid var(--line);text-align:left}
+.mx th.c,.mx td.c{text-align:center;min-width:90px;white-space:nowrap}
+.mx td{padding:7px 8px;border-bottom:1px solid var(--line)}
+.mx tr.shared td:first-child{font-weight:700}
+.cell{width:18px;height:18px;border-radius:50%;display:inline-block;border:0;padding:0;vertical-align:middle}
+.cell.off{background:transparent;box-shadow:inset 0 0 0 1.5px #d5dde8;cursor:default}
+button.cell{cursor:pointer}button.cell:hover{box-shadow:0 0 0 3px rgba(15,23,42,.15)}
+.sharetag{font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--green);background:var(--green-bg);border-radius:999px;padding:1px 7px;margin-left:6px}
+
+/* time machine */
+.tm .body{display:grid;gap:14px}
+.tmtop{display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+.tmdate{font-size:22px;font-weight:750;min-width:180px}
+.tmst{font-size:12px;font-weight:800;letter-spacing:.06em;border-radius:999px;padding:5px 12px;border:1.5px solid currentColor}
+.tmcount{color:var(--muted);font-size:13.5px}
+.tmrow{display:flex;gap:12px;align-items:center}
+.tmrow input[type=range]{flex:1;accent-color:var(--navy);height:28px}
+.play{width:40px;height:40px;border-radius:50%;border:0;background:var(--navy);color:#fff;display:grid;place-items:center;flex:none}
+.play:disabled{opacity:.5}
+.ticks{position:relative;height:30px;margin:0 9px 0 61px}
+.ticks i{cursor:pointer}
+.ticks span{position:absolute;top:0;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10.5px;color:var(--muted);white-space:nowrap}
+.ticks span i{width:10px;height:10px;border-radius:50%;background:#cbd5e1;border:2px solid #fff;box-shadow:0 0 0 1px #cbd5e1}
+.ticks span.lbl-off em{display:none}
+.ticks em{font-style:normal}
+.ticks span:last-child em{transform:translateX(-30%)}
+.newev{display:grid;gap:8px}
+.newev .ev{margin:0}
+
 /* entity drawer */
 .drawer{position:fixed;top:0;right:0;bottom:0;width:min(420px,100%);background:#fff;box-shadow:-20px 0 60px -20px rgba(0,0,0,.35);transform:translateX(105%);transition:transform .25s;z-index:55;display:flex;flex-direction:column}
 .drawer{visibility:hidden;transition:transform .25s,visibility 0s .25s}
@@ -250,6 +302,8 @@ footer{border-top:1px solid var(--line);padding:18px 0 30px;color:var(--muted);f
     <div class="qmeta">
       <span class="lbl">Try a scenario <span style="text-transform:none;letter-spacing:0;font-weight:500">(keys 1–6)</span></span>
       <div class="qbtns">
+        <button class="btn ghost" id="open-conn" type="button" data-tab="conn">Connect entities</button>
+        <button class="btn ghost" id="open-cmp" type="button" data-tab="cmp">Compare</button>
         <button class="btn ghost" id="open-tools" type="button" data-tab="fc">Fact-check a report</button>
         <button class="btn ghost" id="open-iocs" type="button" data-tab="ioc">Extract IOCs</button>
         <button class="btn ghost" id="open-batch" type="button" data-tab="batch">Batch verify</button>
@@ -304,6 +358,8 @@ footer{border-top:1px solid var(--line);padding:18px 0 30px;color:var(--muted);f
       <button class="tab on" type="button" data-p="fc">Fact-check a report</button>
       <button class="tab" type="button" data-p="ioc">Extract IOCs</button>
       <button class="tab" type="button" data-p="batch">Batch verify</button>
+      <button class="tab" type="button" data-p="conn">Connect entities</button>
+      <button class="tab" type="button" data-p="cmp">Compare</button>
     </div>
     <div class="in">
       <div class="tpane on" id="p-fc">
@@ -316,6 +372,23 @@ footer{border-top:1px solid var(--line);padding:18px 0 30px;color:var(--muted);f
         <div class="hint">One claim per line, either <code>APT28 | USES | Zebrocy</code> (relations: USES, TARGETS, EXPLOITS, USES_TECHNIQUE; prefix <code>NOT</code> for a negative claim) or a question like <code>Does APT29 use Cobalt Strike?</code>. Up to 25 lines; a <code>subject,relation,object</code> CSV works too.</div>
         <div><label for="b-text">Claims</label><textarea id="b-text" spellcheck="false" placeholder="APT28 | USES | Zebrocy&#10;Emotet | USES | TrickBot&#10;Does APT29 use Cobalt Strike?"></textarea></div>
       </div>
+      <div class="tpane" id="p-conn">
+        <div class="hint">Finds the shortest chains of relations linking two entities in the knowledge graph, preferring specific links over generic hubs like “government”. Every hop shows its source sentence and whether the NLI verifier finds that the text states it.</div>
+        <div class="row conn">
+          <div><label for="c-a">From</label><input id="c-a" list="ent-list" placeholder="e.g. APT28" autocomplete="off"></div>
+          <div><label for="c-b">To</label><input id="c-b" list="ent-list" placeholder="e.g. NATO" autocomplete="off"></div>
+          <div><label for="c-h">Max hops</label><select id="c-h"><option>2</option><option>3</option><option selected>4</option><option>5</option></select></div>
+        </div>
+      </div>
+      <div class="tpane" id="p-cmp">
+        <div class="hint">Side-by-side view of what 2 or 3 actors or malware families share: malware and tools, targets, ATT&amp;CK techniques and CVEs, each with the sentence and source behind it.</div>
+        <div class="row">
+          <div><label for="m-1">Entity 1</label><input id="m-1" list="ent-list" placeholder="e.g. Emotet" autocomplete="off"></div>
+          <div><label for="m-2">Entity 2</label><input id="m-2" list="ent-list" placeholder="e.g. TrickBot" autocomplete="off"></div>
+          <div><label for="m-3">Entity 3 (optional)</label><input id="m-3" list="ent-list" placeholder="optional" autocomplete="off"></div>
+        </div>
+      </div>
+      <datalist id="ent-list"></datalist>
       <div id="t-report">
         <div class="filerow" style="margin-bottom:10px"><span>Load a file (PDF, TXT, MD, HTML):</span><input type="file" id="t-file" accept=".pdf,.txt,.md,.html,.htm"><span id="t-fstat"></span></div>
         <div class="row" style="margin-bottom:12px">
@@ -402,7 +475,7 @@ async function loadHealth(){
 let busy=false;
 async function run(query){
   query=(query||$("q").value).trim(); if(!query||busy) return;
-  $("q").value=query; busy=true; $("go").disabled=true;
+  $("q").value=query; busy=true; $("go").disabled=true; tm=null;
   try{history.replaceState(null,"","?q="+encodeURIComponent(query))}catch(e){}
   const t0=Date.now();
   $("out").innerHTML=`<div class="panel skeleton"><div class="running"><div class="spin"></div><span>Checking “${esc(query)}” <span id="el" class="mono" style="color:var(--muted);font-weight:500">0s</span></span></div><div style="margin-top:18px"><div class="sk" style="width:60%"></div><div class="sk" style="width:90%"></div><div class="sk" style="width:75%"></div></div></div>`;
@@ -497,6 +570,9 @@ function render(d,secs){
       <div class="legend"><span><i style="background:var(--green)"></i>Supporting report</span><span><i style="background:var(--red)"></i>Contradicting report</span>${cr&&cr.threshold?`<span>Gap needed to call it “superseded”: ${cr.threshold} days</span>`:""}</div></section>`;
   }
 
+  if(cp.r){
+    html+=`<section class="panel tm" id="tm" style="margin-top:18px"><h3><span>Time machine <span style="text-transform:none;letter-spacing:0;font-weight:500">what did the reports say on a given date?</span></span><span style="text-transform:none;letter-spacing:0;font-weight:500;font-size:12px">core verifier · same engine as the API</span></h3><div class="body" id="tmbody"><div class="running"><div class="spin"></div>Finding the dates the evidence was published…</div></div></section>`;
+  }
   html+=`<div class="grid"><div>
     <section class="panel"><h3><span>Evidence</span><div class="tabs"><button class="tab on" data-t="s" type="button">Supporting<span class="n">${sup.length}</span></button><button class="tab" data-t="c" type="button">Contradicting<span class="n">${con.length}</span></button></div></h3>
       <div class="body" id="evbody"></div></section>
@@ -523,6 +599,7 @@ function render(d,secs){
 
   $("brief").innerHTML=md(d.narrative||"");
   lastInv=d;
+  if(cp.r) initTimeMachine(cp);
   $("x-md").addEventListener("click",exportBrief);
   $("x-stix").addEventListener("click",exportStix);
   renderGraph(d.subgraph||{nodes:[],edges:[]},d.matched_entities||[]);
@@ -657,15 +734,18 @@ function openTools(p){$("tools").classList.add("on");showPane(p||tpane)}
 function closeTools(){$("tools").classList.remove("on")}
 function showPane(p){
   tpane=p; document.querySelectorAll("#ttabs .tab").forEach(b=>b.classList.toggle("on",b.dataset.p===p));
-  ["fc","ioc","batch"].forEach(k=>$("p-"+k).classList.toggle("on",k===p));
-  $("t-report").style.display=p==="batch"?"none":"";
-  $("t-run").textContent={fc:"Fact-check",ioc:"Extract IOCs",batch:"Verify all"}[p];
+  ["fc","ioc","batch","conn","cmp"].forEach(k=>$("p-"+k).classList.toggle("on",k===p));
+  $("t-report").style.display=["batch","conn","cmp"].includes(p)?"none":"";
+  $("t-run").textContent={fc:"Fact-check",ioc:"Extract IOCs",batch:"Verify all",conn:"Find connections",cmp:"Compare"}[p];
+  if(p==="conn"||p==="cmp") loadEntityList();
   const last={fc:lastFC,ioc:lastIOC,batch:lastBatch}[p];
   $("t-res").innerHTML=last?last.html:"";
   if(last&&last.bind) last.bind();
 }
 function useSample(){
   if(tpane==="batch"){$("b-text").value=SAMPLE_BATCH;return}
+  if(tpane==="conn"){$("c-a").value="Emotet";$("c-b").value="Ryuk";return}
+  if(tpane==="cmp"){$("m-1").value="Emotet";$("m-2").value="Trickbot";$("m-3").value="Dridex";return}
   $("t-title").value=SAMPLE_REPORT.title;$("t-src").value=SAMPLE_REPORT.src;$("t-date").value=SAMPLE_REPORT.date;$("t-text").value=SAMPLE_REPORT.text;
 }
 async function loadFile(){
@@ -685,6 +765,8 @@ const askOf=(s,r,o,neg)=>`Does ${s} ${neg?"not ":""}${REL_VERB[r]||"use"} ${o}?`
 
 async function runTool(){
   const btn=$("t-run");
+  if(tpane==="conn") return runConnect();
+  if(tpane==="cmp") return runCompare();
   if(tpane!=="batch"&&!$("t-text").value.trim()){toast("Paste report text or load a file first.");return}
   if(tpane==="batch"&&!$("b-text").value.trim()){toast("Enter at least one claim.");return}
   $("t-res").innerHTML='<div class="running"><div class="spin"></div>Working… fact-checking verifies each claim with the NLI model and can take a few seconds per claim.</div>';
@@ -756,6 +838,173 @@ function renderBatch(d){
   lastBatch={html,bind}; $("t-res").innerHTML=html; bind();
 }
 
+/* ---------------- connection finder & comparison ---------------- */
+let entListLoaded=false, cnet=null;
+const ENT_COL=["#2a78d6","#eb6834","#1baf7a"];
+const V_LABEL={SUPPORTED:["Confirmed by text","--green","--green-bg"],CONFLICTING_EVIDENCE:["Conflicting","--red","--red-bg"],CONTRADICTED:["Contradicted","--red","--red-bg"],INSUFFICIENT_EVIDENCE:["Not stated in text","--slate","--slate-bg"],ERROR:["Not checked","--slate","--slate-bg"]};
+async function loadEntityList(){
+  if(entListLoaded) return;
+  try{const j=await (await api("/entities")).json();
+    $("ent-list").innerHTML=j.entities.map(e=>`<option value="${esc(e.name)}">${esc(e.category)}</option>`).join(""); entListLoaded=true;}catch(e){}
+}
+function viewLoading(msg){ tm=null; lastInv=null; $("out").innerHTML=`<div class="panel skeleton"><div class="running"><div class="spin"></div><span>${esc(msg)}</span></div><div style="margin-top:18px"><div class="sk" style="width:60%"></div><div class="sk" style="width:85%"></div></div></div>`; }
+function viewError(e){ $("out").innerHTML=`<div class="err"><b>Could not complete this.</b> ${esc(e.message||e)}</div>`; }
+const enode=n=>`<span class="enode"><i style="background:${TYPE_COLOR[n.category]||TYPE_COLOR.Entity}"></i>${esc(n.name)}</span>`;
+
+async function runConnect(){
+  const a=$("c-a").value.trim(), b=$("c-b").value.trim();
+  if(!a||!b){toast("Enter two entities.");return}
+  closeTools(); viewLoading(`Finding connections between ${a} and ${b} and verifying each hop…`);
+  try{ renderConnections(await (await postJSON("/connect",{a,b,max_hops:+$("c-h").value})).json()); }
+  catch(e){ viewError(e); }
+}
+function renderConnections(d){
+  const P=d.paths, src=d.source, dst=d.target;
+  if(!P.length){
+    $("out").innerHTML=`<section class="panel verdict" style="--c:var(--slate);--bg2:var(--slate-bg)"><div class="badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 6l12 12M18 6L6 18"/></svg><span class="st">NO CONNECTION</span></div>
+      <div><div class="claim">${esc(src.name)} <span class="rel">↔</span> ${esc(dst.name)}</div><div class="why">No chain of relations links them within ${d.max_hops} hops in the knowledge graph. That means the 104 reports never connect them through extracted relations, not that no connection exists.</div></div><div></div></section>`;
+    return;
+  }
+  const tot=P.reduce((s,p)=>s+p.length,0), conf=P.reduce((s,p)=>s+p.confirmed_hops,0);
+  const shortest=Math.min(...P.map(p=>p.length));
+  const cards=P.map((p,i)=>{
+    const chain=p.nodes.map((n,k)=>enode(n)+(k<p.hops.length?`<span class="erel">${p.hops[k].forward?"":"← "}${esc(p.hops[k].relation.replace(/_/g," "))}${p.hops[k].forward?" →":""}</span>`:"")).join("");
+    const hops=p.hops.map(h=>{const v=h.verdict||{status:"ERROR"}; const L=V_LABEL[v.status]||V_LABEL.ERROR;
+      return `<div class="hop"><div class="hl"><span><b>${esc(h.subject)}</b> ${esc(h.relation.replace(/_/g," "))} <b>${esc(h.object)}</b></span><span class="pill" style="background:var(${L[2]});color:var(${L[1]})">${L[0]}${v.status==="SUPPORTED"&&v.support_tier==="CORROBORATED"?" · multi-source":""}</span></div>
+        <div class="q">“${esc(cleanText(h.text).slice(0,260))}${(h.text||"").length>260?"…":""}”</div>
+        <div class="m">${esc(h.publisher||"Unknown publisher")} · ${esc(fmtDate(h.date))}${h.evidence_count>1?` · ${h.evidence_count} sentences`:""} · <button class="vlink" type="button" data-q="${esc(askOf(h.subject,h.relation,h.object,false))}">Open investigation ›</button></div></div>`}).join("");
+    return `<div class="pcard${i===0?" on":""}" data-i="${i}"><div class="ph"><span>Path ${i+1} · ${p.length} hop${p.length>1?"s":""}</span><span>${p.confirmed_hops} of ${p.length} confirmed by source text</span></div><div class="chain">${chain}</div>${hops}</div>`;
+  }).join("");
+  $("out").innerHTML=`
+    <section class="panel verdict" style="--c:var(--blue);--bg2:#e0f0fa"><div class="badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="5" cy="12" r="2.5"/><circle cx="19" cy="6" r="2.5"/><circle cx="19" cy="18" r="2.5"/><path d="M7.3 11l9.4-4M7.3 13l9.4 4"/></svg><span class="st">${P.length} CONNECTION${P.length>1?"S":""}</span></div>
+      <div><div class="claim">${esc(src.name)} <span class="rel">↔</span> ${esc(dst.name)}</div><div class="why">Shortest chain: ${shortest} hop${shortest>1?"s":""}. ${conf} of ${tot} hops are confirmed by the source text; the others are graph links the verifier could not confirm, so treat those paths as leads.</div></div>
+      <div class="metrics"><div class="metric"><div class="v">${shortest}</div><div class="l">Shortest</div><small>hops</small></div><div class="metric"><div class="v">${conf}/${tot}</div><div class="l">Confirmed</div><small>hops</small></div><div class="metric"><div class="v">${P.length}</div><div class="l">Paths</div><small>shown</small></div></div></section>
+    <div class="grid"><div><section class="panel"><h3><span>Paths</span><span style="text-transform:none;letter-spacing:0;font-weight:500">click a path to highlight it</span></h3><div class="body" id="pcards">${cards}</div></section></div>
+      <div><section class="panel"><h3><span>On the graph</span></h3><div class="body"><div id="cgraph"></div><div class="glegend" id="cglegend"></div><div class="gnote">${esc(d.note)}</div></div></section></div></div>`;
+  $("pcards").querySelectorAll(".vlink").forEach(b=>b.addEventListener("click",e=>{e.stopPropagation();run(b.dataset.q)}));
+  $("pcards").querySelectorAll(".pcard").forEach(c=>c.addEventListener("click",()=>{$("pcards").querySelectorAll(".pcard").forEach(x=>x.classList.toggle("on",x===c));highlightPath(+c.dataset.i)}));
+  drawPaths(d);
+}
+let cpaths=null;
+function drawPaths(d){
+  cpaths=d.paths; const nodes=new Map(), edges=new Map();
+  d.paths.forEach(p=>{p.nodes.forEach(n=>nodes.set(n.id,n)); p.hops.forEach(h=>{const id=h.from<h.to?h.from+"|"+h.to:h.to+"|"+h.from; edges.set(id,{id,from:h.forward?h.from:h.to,to:h.forward?h.to:h.from,label:h.relation.replace(/_/g," ")})})});
+  const ends=new Set([d.source.id,d.target.id]);
+  const vn=[...nodes.values()].map(n=>({id:n.id,label:n.name,shape:"dot",size:ends.has(n.id)?26:16,color:{background:TYPE_COLOR[n.category]||TYPE_COLOR.Entity,border:ends.has(n.id)?"#12203a":"#fff"},borderWidth:ends.has(n.id)?3:1.5,font:{size:14,color:"#0f172a",strokeWidth:4,strokeColor:"#fbfcfe"},_name:n.name}));
+  const ve=[...edges.values()].map(e=>({...e,arrows:"to",color:{color:"#94a3b8"},width:1.5,font:{size:10.5,color:"#475569",strokeWidth:3,strokeColor:"#fbfcfe",align:"middle"},smooth:{type:"dynamic"}}));
+  if(cnet){cnet.destroy();cnet=null}
+  cnet=new vis.Network($("cgraph"),{nodes:new vis.DataSet(vn),edges:new vis.DataSet(ve)},{physics:{barnesHut:{gravitationalConstant:-6000,springLength:140},stabilization:{iterations:200}},interaction:{hover:true}});
+  cnet.once("stabilizationIterationsDone",()=>{cnet.setOptions({physics:false});cnet.fit({animation:{duration:400}});highlightPath(0)});
+  cnet.on("click",p=>{if(p.nodes&&p.nodes.length){const n=vn.find(x=>x.id===p.nodes[0]);if(n) openEntity(n._name)}});
+  const types=[...new Set([...nodes.values()].map(n=>n.category))];
+  $("cglegend").innerHTML=types.map(t=>`<span><i style="background:${TYPE_COLOR[t]||TYPE_COLOR.Entity}"></i>${esc(t)}</span>`).join("")+`<span><i style="background:#fff;border:2px solid #12203a"></i>Endpoints</span>`;
+}
+function highlightPath(i){
+  if(!cnet||!cpaths||!cpaths[i]) return;
+  const on=new Set(cpaths[i].hops.map(h=>h.from<h.to?h.from+"|"+h.to:h.to+"|"+h.from));
+  const ds=cnet.body.data.edges; ds.update(ds.get().map(e=>({id:e.id,width:on.has(e.id)?4:1.2,color:{color:on.has(e.id)?"#12203a":"#cbd5e1"}})));
+}
+
+async function runCompare(){
+  const names=[$("m-1").value,$("m-2").value,$("m-3").value].map(x=>x.trim()).filter(Boolean);
+  if(names.length<2){toast("Enter at least two entities.");return}
+  closeTools(); viewLoading(`Comparing ${names.join(", ")}…`);
+  try{ renderCompare(await (await postJSON("/compare",{names})).json(), names); }
+  catch(e){ viewError(e); }
+}
+function renderCompare(d,names){
+  const E=d.entities, k=E.length, col=i=>ENT_COL[i];
+  const cards=E.map((e,i)=>`<div class="ecard" style="--c:${col(i)}"><h4>${esc(e.name)}</h4><div class="m">${esc(e.category)}${e.mitre_id?` · <a href="https://attack.mitre.org/${/^G/.test(e.mitre_id)?"groups":"software"}/${esc(e.mitre_id)}/" target="_blank" rel="noopener">${esc(e.mitre_id)}</a>`:""} · ${e.mentions} mentions</div>${e.aliases&&e.aliases.length?`<div class="m">aka ${esc(e.aliases.slice(0,5).join(", "))}</div>`:""}</div>`).join("");
+  const pairs=d.pairs.map(p=>`<span class="tag" style="background:var(--soft);color:#334155">${esc(p.a)} & ${esc(p.b)}: ${p.shared} shared</span>`).join(" ");
+  const groups=d.groups.map((g,gi)=>{
+    const rows=g.items.map((it,ii)=>`<tr class="${it.shared_by.length>1?"shared":""}"><td>${esc(it.name)}${it.shared_by.length===k?'<span class="sharetag">all</span>':""}</td>${E.map((e,ei)=>{
+      const ev=it.evidence[e.name]; if(!ev) return `<td class="c"><span class="cell off" aria-label="not linked"></span></td>`;
+      const tip=`${ev[0].publisher||"Unknown"} · ${fmtDate(ev[0].date)}: “${cleanText(ev[0].text).slice(0,200)}”`;
+      return `<td class="c"><button class="cell" type="button" style="background:${col(ei)}" title="${esc(tip)}" aria-label="${esc(e.name)} – ${esc(it.name)}: open investigation" data-g="${gi}" data-i="${ii}" data-e="${ei}"></button></td>`}).join("")}</tr>`).join("");
+    return `<section class="panel" style="margin-top:18px"><h3><span>${esc(g.label)}</span><span style="text-transform:none;letter-spacing:0;font-weight:500">${g.items.length} item${g.items.length>1?"s":""}${g.shared_all?` · ${g.shared_all} shared by all`:""}</span></h3>
+      <div class="body tscroll"><table class="mx"><thead><tr><th>Item</th>${E.map((e,i)=>`<th class="c"><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${col(i)};margin-right:5px"></span>${esc(e.name)}</th>`).join("")}</tr></thead><tbody>${rows}</tbody></table></div></section>`;
+  }).join("");
+  const hasTech=d.groups.some(g=>g.key==="techniques");
+  $("out").innerHTML=`
+    <section class="panel" style="padding:18px 20px"><div class="ecards" style="--k:${k}">${cards}</div>
+      <div style="margin-top:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap"><div class="headline" style="font-size:17px">${d.shared_all} shared by all · ${d.total_distinct} distinct links</div>${pairs}</div>
+      <div class="xrow" style="margin-top:12px"><button class="xbtn2" id="cmp-csv" type="button">Download CSV</button>${hasTech?'<button class="xbtn2" id="cmp-layer" type="button">ATT&amp;CK overlap layer</button>':""}<span class="hint">Hover a dot for its source sentence; click it to verify that link.</span></div>
+      <div class="hint" style="margin-top:8px">${esc(d.note)}</div></section>
+    ${groups||'<div class="empty">These entities have no graph relations to compare.</div>'}`;
+  $("out").querySelectorAll("button.cell").forEach(b=>b.addEventListener("click",()=>{
+    const g=d.groups[+b.dataset.g], it=g.items[+b.dataset.i], e=E[+b.dataset.e];
+    run(g.outbound?askOf(e.name,g.relation,it.name,false):askOf(it.name,g.relation,e.name,false));
+  }));
+  $("cmp-csv").addEventListener("click",()=>withBusy($("cmp-csv"),"…",async()=>{const r=await postJSON("/compare?format=csv",{names});saveBlob(await r.blob(),fileNameFrom(r,"compare.csv"))}));
+  if(hasTech) $("cmp-layer").addEventListener("click",()=>withBusy($("cmp-layer"),"…",async()=>{const r=await postJSON("/compare?format=layer",{names});saveBlob(await r.blob(),fileNameFrom(r,"layer.json"));toast("Layer downloaded. Open it in ATT&CK Navigator.")}));
+}
+
+/* ---------------- time machine ---------------- */
+const TM_STATUS={SUPPORTED:{l:"Supported",c:"var(--green)"},CONTRADICTED:{l:"Contradicted",c:"var(--red)"},CONFLICTING_EVIDENCE:{l:"Conflicting",c:"var(--red)"},INSUFFICIENT_EVIDENCE:{l:"No evidence yet",c:"var(--slate)"}};
+let tm=null;
+async function initTimeMachine(cp){
+  const myQuery=lastInv&&lastInv.query;
+  try{
+    const qs=new URLSearchParams({subject:cp.s,relation:cp.r,object:cp.o});
+    const d=await (await api("/timetravel?"+qs)).json();
+    if(!lastInv||lastInv.query!==myQuery||!$("tmbody")) return;
+    if(!d.checkpoints.length){ $("tmbody").innerHTML=`<div class="hint">No dated evidence for this claim, so there is no timeline to replay.</div>`; return; }
+    tm={claim:d.claim,stops:d.checkpoints,snaps:{},idx:d.checkpoints.length,playing:false,query:myQuery};
+    const n=tm.stops.length;
+    // ticks sit exactly under the slider stops (evenly spaced, like the range input); labels are thinned so they never overlap
+    const maxLabels=Math.max(2,Math.floor((($("tmbody").clientWidth||600)-70)/90));
+    const every=Math.max(1,Math.ceil((n+1)/maxLabels));
+    const ticks=[`<span style="left:0%"><i data-t="0"></i><em>before</em></span>`].concat(tm.stops.map((dt,i)=>{const k=i+1;const lab=k===n||(k%every===0&&n-k>=every/2);return `<span style="left:${(k/n*100).toFixed(2)}%" class="${lab?"":"lbl-off"}" title="${esc(fmtDate(dt))}"><i data-t="${k}"></i><em>${esc(fmtDate(dt))}</em></span>`}));
+    $("tmbody").innerHTML=`
+      <div class="tmtop"><div class="tmdate" id="tm-date">—</div><span class="tmst" id="tm-st">…</span><span class="tmcount" id="tm-count"></span></div>
+      <div class="tmrow"><button class="play" id="tm-play" type="button" aria-label="Replay the evidence over time"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4l13 8-13 8z"/></svg></button>
+        <input type="range" id="tm-r" min="0" max="${n}" step="1" value="${n}" aria-label="Date"></div>
+      <div class="ticks" id="tm-ticks">${ticks.join("")}</div>
+      <div><label style="font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)" id="tm-newl">Evidence published on this date</label><div class="newev" id="tm-new" style="margin-top:8px"></div></div>
+      <div class="hint">Each stop re-runs verification using only reports published on or before that date. The verdict can only change on these dates.</div>`;
+    $("tm-r").addEventListener("input",e=>tmGo(+e.target.value));
+    $("tm-ticks").querySelectorAll("i[data-t]").forEach(t=>t.addEventListener("click",()=>tmGo(+t.dataset.t)));
+    $("tm-play").addEventListener("click",tmPlay);
+    tmGo(n);
+    for(let i=n;i>=1;i--){ await tmFetch(i); if(!tm||tm.query!==myQuery) return; }
+  }catch(e){ if($("tmbody")) $("tmbody").innerHTML=`<div class="hint">Time machine unavailable: ${esc(e.message||e)}</div>`; }
+}
+async function tmFetch(i){
+  if(!tm||i===0||tm.snaps[i]) return tm&&tm.snaps[i];
+  const q=tm.query;
+  const v=await (await postJSON("/verify_claim",{subject:tm.claim.subject,relation:tm.claim.relation,object:tm.claim.object,polarity:tm.claim.polarity||"positive",as_of_date:tm.stops[i-1]})).json();
+  if(!tm||tm.query!==q) return null;
+  tm.snaps[i]=v;
+  const dot=document.querySelector(`#tm-ticks i[data-t="${i}"]`); const m=TM_STATUS[v.status]||TM_STATUS.INSUFFICIENT_EVIDENCE;
+  if(dot){dot.style.background=m.c;dot.style.boxShadow=`0 0 0 1px ${m.c}`}
+  if(tm.idx===i) tmShow(i);
+  return v;
+}
+function tmGo(i){ if(!tm||!$("tm-r")) return; tm.idx=i; $("tm-r").value=i; tmShow(i); if(i>0&&!tm.snaps[i]) tmFetch(i); }
+function tmShow(i){
+  const st=$("tm-st"); if(!st) return;
+  if(i===0){
+    $("tm-date").textContent="Before "+fmtDate(tm.stops[0]); const m=TM_STATUS.INSUFFICIENT_EVIDENCE;
+    st.textContent=m.l.toUpperCase(); st.style.color=m.c; $("tm-count").textContent="No report had mentioned this yet.";
+    $("tm-newl").style.display="none"; $("tm-new").innerHTML=""; return;
+  }
+  const dt=tm.stops[i-1]; $("tm-date").textContent=fmtDate(dt); $("tm-newl").style.display="";
+  const v=tm.snaps[i];
+  if(!v){st.textContent="CHECKING…";st.style.color="var(--muted)";$("tm-count").textContent="";$("tm-new").innerHTML='<div class="running" style="font-weight:500"><div class="spin"></div>Re-verifying with evidence up to this date…</div>';return}
+  const m=TM_STATUS[v.status]||TM_STATUS.INSUFFICIENT_EVIDENCE;
+  st.textContent=m.l.toUpperCase(); st.style.color=m.c;
+  const tier={SINGLE_SOURCE:"one publisher",CORROBORATED:"independent publishers",CONFLICTING:"conflicting",NONE:""}[v.support_tier]||"";
+  $("tm-count").textContent=`${v.supporting.length} supporting · ${v.contradicting.length} contradicting${tier?" · "+tier:""}${v.conflict&&v.conflict.type&&v.conflict.type!=="NO_CONFLICT"?" · "+v.conflict.type.replace(/_/g," ").toLowerCase():""}`;
+  const fresh=[...v.supporting.map(e=>({e,k:"s"})),...v.contradicting.map(e=>({e,k:"c"}))].filter(x=>(x.e.pub_date||"").slice(0,10)===dt);
+  $("tm-new").innerHTML=fresh.map(({e,k})=>`<div class="ev" style="--c:var(${k==="s"?"--green":"--red"})"><div class="top"><div><span class="src">${esc(e.publisher||"Unknown")}</span> ${e.synthetic?'<span class="tag sim">Simulated</span>':""}</div><span class="pill" style="background:var(${k==="s"?"--green-bg":"--red-bg"});color:var(${k==="s"?"--green":"--red"})">${k==="s"?"Supports":"Contradicts"}</span></div><div class="txt">${esc(cleanText(e.untrusted_text).slice(0,320))}${(e.untrusted_text||"").length>320?"…":""}</div></div>`).join("")||'<div class="hint">No new passage on this date (it was retrieved but not decisive).</div>';
+}
+async function tmPlay(){
+  if(!tm||tm.playing) return; tm.playing=true; const b=$("tm-play"); b.disabled=true; const q=tm.query;
+  const live=()=>tm&&tm.query===q;
+  try{ for(let i=0;live()&&i<=tm.stops.length;i++){ tmGo(i); if(i>0) await tmFetch(i); await new Promise(r=>setTimeout(r,i===0?700:1100)); } }
+  finally{ if(tm&&tm.query===q){tm.playing=false;b.disabled=false} }
+}
+
 /* ---------------- wire up ---------------- */
 buildScenarios(); loadHealth();
 Object.entries(PRESET_REPORTS).forEach(([k,v])=>{const o=document.createElement("option");o.value=k;o.textContent=v.title;$("u-pre").appendChild(o)});
@@ -767,7 +1016,7 @@ $("close-ingest").addEventListener("click",closeModal);
 $("cancel-ingest").addEventListener("click",closeModal);
 $("submit-ingest").addEventListener("click",submitReport);
 $("modal").addEventListener("click",e=>{if(e.target.id==="modal")closeModal()});
-["open-tools","open-iocs","open-batch"].forEach(id=>$(id).addEventListener("click",e=>openTools(e.currentTarget.dataset.tab)));
+["open-tools","open-iocs","open-batch","open-conn","open-cmp"].forEach(id=>$(id).addEventListener("click",e=>openTools(e.currentTarget.dataset.tab)));
 $("close-tools").addEventListener("click",closeTools);
 $("tools").addEventListener("click",e=>{if(e.target.id==="tools")closeTools()});
 document.querySelectorAll("#ttabs .tab").forEach(b=>b.addEventListener("click",()=>showPane(b.dataset.p)));
