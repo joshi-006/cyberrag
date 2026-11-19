@@ -3,6 +3,7 @@
 import json
 from pathlib import Path
 import networkx as nx
+import pytest
 
 from src.graph.builder import CyberKnowledgeGraphBuilder
 from src.graph.exporter import CyberKnowledgeGraphExporter
@@ -11,6 +12,7 @@ from src.nlp.ner_engine import ExtractedEntity
 from src.nlp.relation_extractor import ExtractedRelation
 
 
+@pytest.fixture
 def sample_graph_data():
     entities = [
         ExtractedEntity(

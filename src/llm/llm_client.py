@@ -33,24 +33,32 @@ class LocalLLMClient:
         self.model = model
         self.timeout_secs = timeout_secs
 
+    @staticmethod
+    def _list_models(base_url: str, timeout: float) -> List[str]:
+        """Model ids from an OpenAI-compatible ``/models`` endpoint, or [] if the
+        server is not one (a web app answering 200 with HTML does not count)."""
+        try:
+            req = urllib.request.Request(f"{base_url}/models", method="GET")
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                if resp.status != 200:
+                    return []
+                body = json.loads(resp.read(1_000_000).decode("utf-8"))
+        except Exception:
+            return []
+        data = body.get("data") if isinstance(body, dict) else None
+        if not isinstance(data, list):
+            return []
+        return [str(m["id"]) for m in data if isinstance(m, dict) and m.get("id")]
+
     def _auto_detect_url(self) -> str:
         for port in [1235, 1234, 8000, 8080]:
-            try:
-                req = urllib.request.Request(f"http://127.0.0.1:{port}/v1/models", method="GET")
-                with urllib.request.urlopen(req, timeout=0.8) as resp:
-                    if resp.status == 200:
-                        return f"http://127.0.0.1:{port}/v1"
-            except Exception:
-                continue
+            url = f"http://127.0.0.1:{port}/v1"
+            if self._list_models(url, timeout=0.8):
+                return url
         return "http://127.0.0.1:1235/v1"
 
     def is_available(self) -> bool:
-        try:
-            req = urllib.request.Request(f"{self.base_url}/models", method="GET")
-            with urllib.request.urlopen(req, timeout=1.0) as resp:
-                return resp.status == 200
-        except Exception:
-            return False
+        return bool(self._list_models(self.base_url, timeout=1.0))
 
     def chat_complete(
         self,

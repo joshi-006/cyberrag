@@ -74,6 +74,8 @@ main{padding:22px 0 40px}
 .panel .body{padding:16px 18px}
 .grid{display:grid;grid-template-columns:1.25fr 1fr;gap:18px;margin-top:18px;align-items:start}
 @media(max-width:1020px){.grid{grid-template-columns:1fr}}
+.grid>div{min-width:0}
+.panel>h3{flex-wrap:wrap}
 
 .verdict{display:grid;grid-template-columns:auto 1fr auto;gap:22px;align-items:center;padding:22px 24px;border-left:8px solid var(--c);background:linear-gradient(90deg,var(--bg2),#fff 55%)}
 @media(max-width:900px){.verdict{grid-template-columns:1fr}}
@@ -170,7 +172,45 @@ footer{border-top:1px solid var(--line);padding:18px 0 30px;color:var(--muted);f
 .xbtn{border:0;background:none;font-size:22px;color:var(--muted);line-height:1}
 .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--navy);color:#fff;padding:12px 18px;border-radius:12px;box-shadow:var(--shadow);opacity:0;pointer-events:none;transition:.25s;z-index:60;max-width:92vw}
 .toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
-@media print{header .chips,.querybox,.act{display:none}}
+@media print{header .chips,.querybox,.act,.xrow{display:none}}
+
+/* analyst tools */
+.qbtns{display:flex;gap:8px;flex-wrap:wrap}
+.qbtns .btn{height:36px;padding:0 14px;font-size:13.5px}
+.sheet.wide{width:min(1040px,100%)}
+.ttabs{display:flex;gap:6px;flex-wrap:wrap;padding:12px 22px 0}
+.tpane{display:none}.tpane.on{display:grid;gap:12px}
+.hint{color:var(--muted);font-size:13.5px}
+.filerow{display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:13px;color:var(--muted)}
+.filerow input[type=file]{width:auto;padding:6px;background:#fff}
+.res{padding:0 22px 20px}
+.sumrow{display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 12px}
+.sumrow .tag{font-size:11.5px;padding:4px 10px}
+.tbl{width:100%;border-collapse:collapse;font-size:13.5px}
+.tbl th{text-align:left;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);border-bottom:1.5px solid var(--line);padding:8px 8px}
+.tbl td{border-bottom:1px solid var(--line);padding:9px 8px;vertical-align:top}
+.tbl tr.click{cursor:pointer}.tbl tr.click:hover td{background:var(--soft)}
+.tscroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.sent{color:#334155;font-size:13px;margin-top:3px}
+.xrow{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.xbtn2{border:1.5px solid var(--line);background:#fff;color:var(--navy);border-radius:8px;padding:4px 10px;font-size:12.5px;font-weight:600;text-transform:none;letter-spacing:0}
+.xbtn2:hover{background:var(--soft)}.xbtn2:disabled{opacity:.6;cursor:progress}
+.b-CORROBORATED,.b-SUPPORTED{background:var(--green-bg);color:var(--green)}
+.b-CONTRADICTED_BY_CORPUS,.b-CONTRADICTED,.b-CONFLICTING_EVIDENCE,.b-DISPUTED,.b-ERROR{background:var(--red-bg);color:var(--red)}
+.b-NEW_INTEL{background:#e0f0fa;color:#0b5a82}
+.b-INSUFFICIENT_EVIDENCE,.b-LOOKUP{background:var(--slate-bg);color:var(--slate)}
+
+/* entity drawer */
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(420px,100%);background:#fff;box-shadow:-20px 0 60px -20px rgba(0,0,0,.35);transform:translateX(105%);transition:transform .25s;z-index:55;display:flex;flex-direction:column}
+.drawer{visibility:hidden;transition:transform .25s,visibility 0s .25s}
+.drawer.on{transform:none;visibility:visible;transition:transform .25s}
+.drawer h3{margin:0;padding:18px 20px;border-bottom:1px solid var(--line);font-size:18px;display:flex;justify-content:space-between;align-items:center;gap:10px}
+.drawer .in{padding:16px 20px;overflow:auto;display:grid;gap:14px;align-content:start}
+.kv{display:grid;grid-template-columns:110px 1fr;gap:6px 10px;font-size:13.5px}
+.kv dt{color:var(--muted)}.kv dd{margin:0}
+.nb{display:flex;justify-content:space-between;gap:8px;align-items:center;border:1px solid var(--line);border-radius:9px;padding:7px 10px;font-size:13.5px;background:#fff;width:100%;text-align:left}
+.nb:hover{border-color:var(--blue);background:var(--soft)}
+.nb small{color:var(--muted);white-space:nowrap}
 </style>
 </head>
 <body>
@@ -209,7 +249,12 @@ footer{border-top:1px solid var(--line);padding:18px 0 30px;color:var(--muted);f
     </div>
     <div class="qmeta">
       <span class="lbl">Try a scenario <span style="text-transform:none;letter-spacing:0;font-weight:500">(keys 1–6)</span></span>
-      <button class="btn ghost" id="open-ingest" type="button" style="height:36px;padding:0 14px;font-size:13.5px">+ Add a report</button>
+      <div class="qbtns">
+        <button class="btn ghost" id="open-tools" type="button" data-tab="fc">Fact-check a report</button>
+        <button class="btn ghost" id="open-iocs" type="button" data-tab="ioc">Extract IOCs</button>
+        <button class="btn ghost" id="open-batch" type="button" data-tab="batch">Batch verify</button>
+        <button class="btn ghost" id="open-ingest" type="button">+ Add a report</button>
+      </div>
     </div>
     <div class="scn" id="scn"></div>
   </section>
@@ -251,6 +296,46 @@ footer{border-top:1px solid var(--line);padding:18px 0 30px;color:var(--muted);f
     <div class="act"><button class="btn ghost" id="cancel-ingest" type="button">Cancel</button><button class="btn" id="submit-ingest" type="button">Add to graph</button></div>
   </div>
 </div>
+<!-- analyst tools modal -->
+<div class="modal" id="tools" role="dialog" aria-modal="true" aria-labelledby="tt">
+  <div class="sheet wide">
+    <h3 id="tt">Analyst tools <button class="xbtn" id="close-tools" aria-label="Close">×</button></h3>
+    <div class="ttabs tabs" id="ttabs">
+      <button class="tab on" type="button" data-p="fc">Fact-check a report</button>
+      <button class="tab" type="button" data-p="ioc">Extract IOCs</button>
+      <button class="tab" type="button" data-p="batch">Batch verify</button>
+    </div>
+    <div class="in">
+      <div class="tpane on" id="p-fc">
+        <div class="hint">Extracts the relationship claims in a new report and checks each one against the 104-report corpus: what is <b>corroborated</b>, what the corpus <b>contradicts or disputes</b>, and what is <b>new intel</b>. The report itself is not added to the corpus.</div>
+      </div>
+      <div class="tpane" id="p-ioc">
+        <div class="hint">Pulls IP addresses, domains, URLs, e-mails, file hashes and CVEs out of report text, refanging <code>hxxp</code> / <code>[.]</code> first. Private IPs, file names and well-known reference sites are listed separately with the reason.</div>
+      </div>
+      <div class="tpane" id="p-batch">
+        <div class="hint">One claim per line, either <code>APT28 | USES | Zebrocy</code> (relations: USES, TARGETS, EXPLOITS, USES_TECHNIQUE; prefix <code>NOT</code> for a negative claim) or a question like <code>Does APT29 use Cobalt Strike?</code>. Up to 25 lines; a <code>subject,relation,object</code> CSV works too.</div>
+        <div><label for="b-text">Claims</label><textarea id="b-text" spellcheck="false" placeholder="APT28 | USES | Zebrocy&#10;Emotet | USES | TrickBot&#10;Does APT29 use Cobalt Strike?"></textarea></div>
+      </div>
+      <div id="t-report">
+        <div class="filerow" style="margin-bottom:10px"><span>Load a file (PDF, TXT, MD, HTML):</span><input type="file" id="t-file" accept=".pdf,.txt,.md,.html,.htm"><span id="t-fstat"></span></div>
+        <div class="row" style="margin-bottom:12px">
+          <div><label for="t-title">Title</label><input id="t-title" placeholder="Report title"></div>
+          <div><label for="t-src">Source</label><input id="t-src" placeholder="Publisher"></div>
+          <div><label for="t-date">Date</label><input id="t-date" type="date"></div>
+        </div>
+        <div><label for="t-text">Report text</label><textarea id="t-text" placeholder="Paste report text here…"></textarea></div>
+      </div>
+    </div>
+    <div class="act"><button class="btn ghost" id="t-sample" type="button">Use a sample</button><button class="btn" id="t-run" type="button">Run</button></div>
+    <div class="res" id="t-res"></div>
+  </div>
+</div>
+
+<!-- entity drawer -->
+<aside class="drawer" id="ent" aria-labelledby="ent-h" aria-hidden="true">
+  <h3><span id="ent-h">Entity</span><button class="xbtn" id="close-ent" aria-label="Close">×</button></h3>
+  <div class="in" id="ent-body"></div>
+</aside>
 <div class="toast" id="toast" role="status"></div>
 
 <script src="/static/vis-network.min.js"></script>
@@ -415,9 +500,9 @@ function render(d,secs){
   html+=`<div class="grid"><div>
     <section class="panel"><h3><span>Evidence</span><div class="tabs"><button class="tab on" data-t="s" type="button">Supporting<span class="n">${sup.length}</span></button><button class="tab" data-t="c" type="button">Contradicting<span class="n">${con.length}</span></button></div></h3>
       <div class="body" id="evbody"></div></section>
-    <section class="panel" style="margin-top:18px"><h3>Analyst brief <span style="text-transform:none;letter-spacing:0;font-weight:500">generated from the evidence</span></h3><div class="body brief" id="brief"></div></section>
+    <section class="panel" style="margin-top:18px"><h3><span>Analyst brief</span><span class="xrow"><button class="xbtn2" id="x-md" type="button" title="Markdown brief with verdict, evidence, sources and decision trace">Download brief (.md)</button><button class="xbtn2" id="x-stix" type="button" title="STIX 2.1 bundle: relationships for supported claims plus a verdict note">Export STIX 2.1</button></span></h3><div class="body brief" id="brief"></div></section>
   </div><div>
-    <section class="panel"><h3>Knowledge graph <span style="text-transform:none;letter-spacing:0;font-weight:500">around the claim</span></h3><div class="body"><div id="graph"></div><div class="glegend" id="glegend"></div><div class="gnote">Relations are extracted automatically from reports and are unreviewed. Drag nodes, scroll to zoom.</div></div></section>
+    <section class="panel"><h3>Knowledge graph <span style="text-transform:none;letter-spacing:0;font-weight:500">around the claim</span></h3><div class="body"><div id="graph"></div><div class="glegend" id="glegend"></div><div class="gnote">Relations are extracted automatically from reports and are unreviewed. Click a node for its profile; drag nodes, scroll to zoom.</div></div></section>
     <section class="panel" style="margin-top:18px"><h3>How the system decided <span style="text-transform:none;letter-spacing:0;font-weight:500">${secs.toFixed(1)}s</span></h3><div class="body" id="trace"></div></section>
   </div></div>`;
   $("out").innerHTML=html;
@@ -426,17 +511,20 @@ function render(d,secs){
     const arr=k==="s"?sup:con;
     $("evbody").innerHTML = arr.length ? arr.map((e,i)=>evCard(e,k,names,i)).join("") :
       `<div class="empty">${k==="s"?(noEv?"No passage mentions both entities in the same sentence.":"No supporting passages."):"No contradicting passages."}${noEv&&gate?`<div style="margin-top:8px;font-size:13px">${esc(gate.decision_outcome||gate.tool_output_summary||"")}</div>`:""}</div>`;
-    document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("on",b.dataset.t===k));
+    document.querySelectorAll("#out .tab").forEach(b=>b.classList.toggle("on",b.dataset.t===k));
     document.querySelectorAll("#evbody .more").forEach(btn=>btn.addEventListener("click",()=>{
       const card=btn.closest(".ev"), e=(card.dataset.k==="s"?sup:con)[+card.dataset.i], t=card.querySelector(".txt");
       const open=btn.dataset.o==="1"; const full=cleanText(e.text); const short=full.slice(0,330).replace(/\s+\S*$/,"")+"…";
       t.innerHTML=highlight(open?short:e.text,names); btn.dataset.o=open?"0":"1"; btn.textContent=open?"Show full passage":"Show less";
     }));
   };
-  document.querySelectorAll(".tab").forEach(b=>b.addEventListener("click",()=>showEv(b.dataset.t)));
+  document.querySelectorAll("#out .tab").forEach(b=>b.addEventListener("click",()=>showEv(b.dataset.t)));
   showEv(sup.length||!con.length?"s":"c");
 
   $("brief").innerHTML=md(d.narrative||"");
+  lastInv=d;
+  $("x-md").addEventListener("click",exportBrief);
+  $("x-stix").addEventListener("click",exportStix);
   renderGraph(d.subgraph||{nodes:[],edges:[]},d.matched_entities||[]);
   renderTrace(d,hops);
 }
@@ -472,6 +560,7 @@ function renderGraph(sg,matched){
   if(net){net.destroy();net=null}
   net=new vis.Network(box,{nodes:new vis.DataSet(nodes),edges:new vis.DataSet(edges)},{physics:{barnesHut:{gravitationalConstant:-5200,springLength:120,springConstant:.04},stabilization:{iterations:160}},interaction:{hover:true,tooltipDelay:150}});
   net.once("stabilizationIterationsDone",()=>{net.setOptions({physics:false});net.fit({animation:{duration:400}})});
+  net.on("click",p=>{ if(p.nodes&&p.nodes.length){ const id=String(p.nodes[0]); openEntity(id.includes("::")?id.split("::").slice(1).join("::"):id); } });
   const types=[...new Set(nodes.map(n=>n.title))];
   $("glegend").innerHTML=types.map(t=>`<span><i style="background:${TYPE_COLOR[t]||TYPE_COLOR.Entity}"></i>${esc(t)}</span>`).join("")+`<span><i style="background:#fff;border:2px solid #12203a"></i>In your claim</span>`;
 }
@@ -501,6 +590,172 @@ async function submitReport(){
   finally{b.disabled=false;b.textContent="Add to graph"}
 }
 
+/* ---------------- v1 API helpers ---------------- */
+let lastInv=null;
+async function api(path,opts={}){
+  const r=await fetch("/api/v1"+path,opts);
+  const ct=r.headers.get("content-type")||"";
+  if(!r.ok){
+    const j=ct.includes("json")?await r.json().catch(()=>({})):{};
+    throw new Error(j.code==="WARMING_UP"?"The verification service is still loading models. Try again in a few seconds.":(j.message||j.detail||("Server error "+r.status)));
+  }
+  return r;
+}
+const postJSON=(path,body)=>api(path,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+function saveBlob(blob,name){const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500)}
+function fileNameFrom(r,fallback){const m=/filename="([^"]+)"/.exec(r.headers.get("content-disposition")||"");return m?m[1]:fallback}
+async function withBusy(btn,label,fn){const old=btn.textContent;btn.disabled=true;btn.textContent=label;try{await fn()}catch(e){toast(e.message||String(e))}finally{btn.disabled=false;btn.textContent=old}}
+const slug=s=>String(s||"export").replace(/[^A-Za-z0-9._-]+/g,"_").slice(0,60);
+
+/* ---------------- exports for the current investigation ---------------- */
+function exportBrief(){
+  if(!lastInv) return;
+  withBusy($("x-md"),"Preparing…",async()=>{const r=await postJSON("/export/brief",lastInv);saveBlob(await r.blob(),fileNameFrom(r,"brief.md"));toast("Brief downloaded.")});
+}
+function exportStix(){
+  if(!lastInv) return;
+  withBusy($("x-stix"),"Building…",async()=>{
+    const j=await (await postJSON("/export/stix",{question:lastInv.query})).json();
+    saveBlob(new Blob([JSON.stringify(j.bundle,null,2)],{type:"application/json"}),"stix_"+slug(lastInv.query)+".json");
+    toast(`STIX 2.1 bundle with ${j.bundle.objects.length} objects downloaded. Only supported claims become relationships; every verdict is kept as a note.`);
+  });
+}
+
+/* ---------------- entity drawer ---------------- */
+const REL_VERB={USES:"use",TARGETS:"target",EXPLOITS:"exploit",USES_TECHNIQUE:"use"};
+function closeEntity(){$("ent").classList.remove("on");$("ent").setAttribute("aria-hidden","true")}
+async function openEntity(name){
+  $("ent-h").textContent=name; $("ent-body").innerHTML='<div class="running"><div class="spin"></div>Loading profile…</div>';
+  $("ent").classList.add("on"); $("ent").setAttribute("aria-hidden","false");
+  try{
+    const e=await (await api("/entity/"+encodeURIComponent(name))).json();
+    $("ent-h").textContent=e.canonical_name;
+    const nb=(e.neighbors||[]).slice(0,20);
+    const rows=[["Type",e.category||"—"],["MITRE ID",e.mitre_id?`<a href="https://attack.mitre.org/${/^G/.test(e.mitre_id)?"groups":/^S/.test(e.mitre_id)?"software":"techniques"}/${esc(e.mitre_id.replace(".","/"))}/" target="_blank" rel="noopener">${esc(e.mitre_id)}</a>`:"—"],
+      ["Aliases",e.aliases&&e.aliases.length?esc(e.aliases.slice(0,12).join(", ")):"—"],["Mentions",String(e.mention_count||0)],
+      ["First seen",esc(fmtDate(e.first_seen))],["Last seen",esc(fmtDate(e.last_seen))]];
+    $("ent-body").innerHTML=`<dl class="kv">${rows.map(([k,v])=>`<dt>${k}</dt><dd>${k==="MITRE ID"||k==="Aliases"?v:esc(v)}</dd>`).join("")}</dl>
+      <div><label style="font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)">Linked in the graph</label>
+      <div style="display:grid;gap:6px;margin-top:6px">${nb.length?nb.map((n,i)=>`<button class="nb" type="button" data-i="${i}"><span><b>${esc(n.relation.replace(/_/g," "))}</b> ${esc(n.entity)}</span><small>${n.evidence_count} evidence · verify ›</small></button>`).join(""):'<div class="empty" style="padding:12px">No graph links for this entity.</div>'}</div></div>
+      <div class="xrow"><button class="xbtn2" id="ent-nav" type="button">Download ATT&amp;CK Navigator layer</button><span class="hint" id="ent-navn"></span></div>
+      <div class="hint">Graph links are extracted automatically and unreviewed. Click one to verify it against the evidence.</div>`;
+    $("ent-body").querySelectorAll(".nb").forEach(b=>b.addEventListener("click",()=>{
+      const n=nb[+b.dataset.i]; const inbound=/\(inbound\)/.test(n.relation); const rel=n.relation.replace(/\s*\(inbound\)/,"");
+      const [s,o]=inbound?[n.entity,e.canonical_name]:[e.canonical_name,n.entity];
+      closeEntity(); run(`Does ${s} ${REL_VERB[rel]||"use"} ${o}?`);
+    }));
+    api("/navigator/"+encodeURIComponent(e.canonical_name)).then(r=>r.json()).then(j=>{$("ent-navn").textContent=j.technique_count?`${j.technique_count} technique${j.technique_count>1?"s":""} in the corpus`:"no techniques linked in the corpus"; if(!j.technique_count) $("ent-nav").disabled=true;}).catch(()=>{});
+    $("ent-nav").addEventListener("click",()=>withBusy($("ent-nav"),"Building…",async()=>{const r=await api("/navigator/"+encodeURIComponent(e.canonical_name)+"?download=true");saveBlob(await r.blob(),fileNameFrom(r,"layer.json"));toast("Layer downloaded. Open it in MITRE ATT&CK Navigator: Open Existing Layer › Upload from local.")}));
+  }catch(err){ $("ent-body").innerHTML=`<div class="err">${esc(err.message||err)}</div>`; }
+}
+
+/* ---------------- analyst tools modal ---------------- */
+let tpane="fc", lastFC=null, lastIOC=null, lastBatch=null;
+const SAMPLE_REPORT={title:"Weekly CTI digest (sample)",src:"Internal CTI Team",date:"2024-03-01",text:"APT28 used the Zebrocy malware in a phishing campaign against NATO members. APT29 used Cobalt Strike beacons for lateral movement. Black Basta exploited CVE-2024-1709 in ScreenConnect servers.\n\nIndicators: C2 traffic went to hxxps://update-check[.]net/a.php and 45.137.21[.]9. The dropper invoice.exe (SHA256 275a021bbfb6489e54d471899f7db9d1663fc695ec2fe2a2c4538aabf651fd0f) also contacted 10.0.0.5 internally. Reference: https://attack.mitre.org/techniques/T1566/"};
+const SAMPLE_BATCH="APT28 | USES | Zebrocy\nEmotet | USES | TrickBot\nLazarus | TARGETS | banks\nDoes APT29 use Cobalt Strike?\nSandworm | USES | Cyclops Blink";
+function openTools(p){$("tools").classList.add("on");showPane(p||tpane)}
+function closeTools(){$("tools").classList.remove("on")}
+function showPane(p){
+  tpane=p; document.querySelectorAll("#ttabs .tab").forEach(b=>b.classList.toggle("on",b.dataset.p===p));
+  ["fc","ioc","batch"].forEach(k=>$("p-"+k).classList.toggle("on",k===p));
+  $("t-report").style.display=p==="batch"?"none":"";
+  $("t-run").textContent={fc:"Fact-check",ioc:"Extract IOCs",batch:"Verify all"}[p];
+  const last={fc:lastFC,ioc:lastIOC,batch:lastBatch}[p];
+  $("t-res").innerHTML=last?last.html:"";
+  if(last&&last.bind) last.bind();
+}
+function useSample(){
+  if(tpane==="batch"){$("b-text").value=SAMPLE_BATCH;return}
+  $("t-title").value=SAMPLE_REPORT.title;$("t-src").value=SAMPLE_REPORT.src;$("t-date").value=SAMPLE_REPORT.date;$("t-text").value=SAMPLE_REPORT.text;
+}
+async function loadFile(){
+  const f=$("t-file").files[0]; if(!f) return; $("t-fstat").textContent="Reading…";
+  try{
+    const fd=new FormData(); fd.append("file",f);
+    const j=await (await api("/extract_text",{method:"POST",body:fd})).json();
+    $("t-text").value=j.text; if(!$("t-title").value) $("t-title").value=f.name.replace(/\.[^.]+$/,"");
+    $("t-fstat").textContent=`${j.chars.toLocaleString()} characters loaded`+(j.warnings&&j.warnings.length?" · "+j.warnings.join("; "):"");
+  }catch(e){$("t-fstat").textContent="";toast("Could not read the file: "+(e.message||e))}
+}
+const reportBody=()=>({text:$("t-text").value,title:$("t-title").value.trim()||"Analyst report",publisher:$("t-src").value.trim()||"Analyst Submission",pub_date:$("t-date").value||""});
+const BUCKET_LABEL={CORROBORATED:"Corroborated",CONTRADICTED_BY_CORPUS:"Contradicted by corpus",DISPUTED:"Disputed in corpus",NEW_INTEL:"New intel",ERROR:"Could not check"};
+const STATUS_LABEL={SUPPORTED:"Supported",CONTRADICTED:"Contradicted",CONFLICTING_EVIDENCE:"Conflicting",INSUFFICIENT_EVIDENCE:"No evidence",LOOKUP:"Lookup",ERROR:"Error"};
+const TIER_LABEL={NONE:"—",SINGLE_SOURCE:"single source",CORROBORATED:"multiple publishers",CONFLICTING:"conflicting"};
+const askOf=(s,r,o,neg)=>`Does ${s} ${neg?"not ":""}${REL_VERB[r]||"use"} ${o}?`;
+
+async function runTool(){
+  const btn=$("t-run");
+  if(tpane!=="batch"&&!$("t-text").value.trim()){toast("Paste report text or load a file first.");return}
+  if(tpane==="batch"&&!$("b-text").value.trim()){toast("Enter at least one claim.");return}
+  $("t-res").innerHTML='<div class="running"><div class="spin"></div>Working… fact-checking verifies each claim with the NLI model and can take a few seconds per claim.</div>';
+  await withBusy(btn,"Running…",async()=>{
+    try{
+      if(tpane==="fc") renderFC(await (await postJSON("/factcheck",reportBody())).json());
+      else if(tpane==="ioc") renderIOC(await (await postJSON("/iocs",reportBody())).json());
+      else renderBatch(await (await postJSON("/batch",{text:$("b-text").value})).json());
+    }catch(e){ $("t-res").innerHTML=`<div class="err">${esc(e.message||e)}</div>`; }
+    $("t-res").scrollIntoView({behavior:"smooth",block:"start"});
+  });
+}
+
+function evLine(e){return e?`<div class="sent"><b>${esc(e.publisher||"Unknown")}</b> · ${esc(fmtDate(e.pub_date))}: ${esc(cleanText(e.text).slice(0,220))}${e.text&&e.text.length>220?"…":""}</div>`:""}
+function renderFC(d){
+  const sm=d.summary||{};
+  const chips=Object.keys(BUCKET_LABEL).filter(k=>sm[k]).map(k=>`<span class="tag b-${k}">${sm[k]} ${esc(BUCKET_LABEL[k])}</span>`).join("");
+  const rows=(d.claims||[]).map((c,i)=>{
+    const ev=(c.bucket==="CONTRADICTED_BY_CORPUS"?c.contradicting:c.supporting)||[];
+    return `<tr class="click" data-i="${i}" title="Open the full investigation for this claim">
+      <td><span class="tag b-${esc(c.bucket)}">${esc(BUCKET_LABEL[c.bucket]||c.bucket)}</span>${c.hedged_only?'<div class="sent" style="color:var(--amber)">hedged wording only</div>':""}</td>
+      <td><b>${esc(c.subject)}</b> ${c.polarity==="negative"?"NOT ":""}${esc(c.relation.replace(/_/g," "))} <b>${esc(c.object)}</b><div class="sent">Report: “${esc(cleanText(c.report_sentence).slice(0,240))}”</div></td>
+      <td>${c.error?esc(c.error):`${esc(TIER_LABEL[c.support_tier]||"—")}${ev.map(evLine).join("")}${c.conflict&&c.conflict.type&&c.conflict.type!=="NO_CONFLICT"?`<div class="sent" style="color:var(--purple)">${esc(c.conflict.type.replace(/_/g," ").toLowerCase())}${c.conflict.delta_days?` · ${c.conflict.delta_days} days`:""}</div>`:""}`}</td></tr>`;
+  }).join("");
+  const html=`<div class="sumrow">${chips||'<span class="hint">No relationship claims were found in this text.</span>'}</div>
+    <div class="hint" style="margin-bottom:10px">${esc(d.note)} ${d.sentences} sentences, ${d.claims_extracted} claim mentions, ${d.claims_checked} distinct claims checked${d.truncated?" (first 20 shown)":""}.</div>
+    ${rows?`<div class="tscroll"><table class="tbl"><thead><tr><th style="width:150px">Result</th><th>Claim in the report</th><th style="width:38%">Corpus evidence</th></tr></thead><tbody>${rows}</tbody></table></div>`:""}
+    ${(d.techniques||[]).length?`<div class="xrow" style="margin-top:12px"><button class="xbtn2" id="fc-nav" type="button">Download ATT&amp;CK layer (${d.techniques.length} technique${d.techniques.length>1?"s":""})</button><span class="hint">${esc(d.techniques.slice(0,6).join(" · "))}</span></div>`:""}`;
+  const bind=()=>{
+    $("t-res").querySelectorAll("tr.click").forEach(tr=>tr.addEventListener("click",()=>{const c=d.claims[+tr.dataset.i]; closeTools(); run(askOf(c.subject,c.relation,c.object,c.polarity==="negative"))}));
+    const nb=$("fc-nav"); if(nb) nb.addEventListener("click",()=>withBusy(nb,"Building…",async()=>{const r=await postJSON("/navigator/report",{title:d.title,techniques:d.techniques});saveBlob(await r.blob(),fileNameFrom(r,"layer.json"));toast("Layer downloaded. Open it in ATT&CK Navigator.")}));
+  };
+  lastFC={html,bind}; $("t-res").innerHTML=html; bind();
+}
+
+function renderIOC(d){
+  const types=Object.entries(d.by_type||{});
+  const rows=(d.iocs||[]).map(i=>`<tr><td><span class="tag" style="background:var(--soft);color:#334155">${esc(i.type)}</span></td><td class="mono" style="word-break:break-all">${esc(i.defanged)}</td><td>${i.count}</td><td class="sent">${esc(i.context)}</td></tr>`).join("");
+  const excl=(d.excluded||[]);
+  const html=`<div class="sumrow"><span class="tag b-NEW_INTEL">${d.total} indicator${d.total===1?"":"s"}</span>${types.map(([k,v])=>`<span class="tag" style="background:var(--soft);color:#334155">${v} ${esc(k)}</span>`).join("")}</div>
+    ${rows?`<div class="xrow" style="margin-bottom:10px"><button class="xbtn2" id="ioc-csv" type="button">Download CSV</button><button class="xbtn2" id="ioc-stix" type="button">Download STIX 2.1 indicators</button><button class="xbtn2" id="ioc-copy" type="button">Copy defanged list</button><span class="hint">Values are shown defanged so they are safe to paste.</span></div>
+    <div class="tscroll"><table class="tbl"><thead><tr><th>Type</th><th>Indicator</th><th>Seen</th><th>Context</th></tr></thead><tbody>${rows}</tbody></table></div>`:'<div class="hint">No indicators found.</div>'}
+    ${excl.length?`<details style="margin-top:12px"><summary class="hint" style="cursor:pointer">${excl.length} value${excl.length>1?"s":""} filtered out (private IPs, file names, reference sites)</summary><table class="tbl" style="margin-top:6px"><tbody>${excl.map(x=>`<tr><td>${esc(x.type)}</td><td class="mono" style="word-break:break-all">${esc(x.value)}</td><td class="sent">${esc(x.reason)}</td></tr>`).join("")}</tbody></table></details>`:""}`;
+  const bind=()=>{
+    const b=reportBody(), t=slug(b.title);
+    const c=$("ioc-csv"); if(!c) return;
+    c.addEventListener("click",()=>withBusy(c,"…",async()=>{const r=await postJSON("/iocs?format=csv",b);saveBlob(await r.blob(),fileNameFrom(r,"iocs.csv"))}));
+    $("ioc-stix").addEventListener("click",()=>withBusy($("ioc-stix"),"…",async()=>{const j=await (await postJSON("/iocs?format=stix",b)).json();saveBlob(new Blob([JSON.stringify(j,null,2)],{type:"application/json"}),"iocs_"+t+"_stix.json")}));
+    $("ioc-copy").addEventListener("click",async()=>{try{await navigator.clipboard.writeText(d.iocs.map(i=>i.defanged).join("\n"));toast("Copied "+d.iocs.length+" defanged indicators.")}catch(e){toast("Clipboard not available in this browser.")}});
+  };
+  lastIOC={html,bind}; $("t-res").innerHTML=html; bind();
+}
+
+function renderBatch(d){
+  const chips=Object.entries(d.summary||{}).map(([k,v])=>`<span class="tag b-${esc(k)}">${v} ${esc(STATUS_LABEL[k]||k)}</span>`).join("");
+  const rows=(d.rows||[]).map((r,i)=>`<tr class="${r.claim&&r.status!=="ERROR"?"click":""}" data-i="${i}">
+    <td><span class="tag b-${esc(r.status)}">${esc(STATUS_LABEL[r.status]||r.status)}</span>${r.hedged_only?'<div class="sent" style="color:var(--amber)">hedged only</div>':""}</td>
+    <td>${r.claim?esc(r.claim.replace(/_/g," ")):'<span class="hint">—</span>'}${r.kind==="question"?`<div class="sent">from “${esc(r.input)}”</div>`:""}${r.error?`<div class="sent" style="color:var(--red)">${esc(r.error)}</div>`:""}</td>
+    <td>${esc(TIER_LABEL[r.support_tier]||"—")}</td><td>${r.supporting} / ${r.contradicting}</td><td class="sent">${esc((r.publishers||[]).join(", "))||"—"}</td></tr>`).join("");
+  const html=`<div class="sumrow">${chips}</div>${d.truncated?`<div class="hint">Only the first ${d.max_lines} lines were checked.</div>`:""}
+    <div class="xrow" style="margin-bottom:10px"><button class="xbtn2" id="b-csv" type="button">Download CSV</button><span class="hint">Click a row to open its full investigation.</span></div>
+    <div class="tscroll"><table class="tbl"><thead><tr><th style="width:130px">Verdict</th><th>Claim</th><th>Support</th><th>Sup / Con</th><th>Publishers</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  const text=$("b-text").value;
+  const bind=()=>{
+    $("t-res").querySelectorAll("tr.click").forEach(tr=>tr.addEventListener("click",()=>{const r=d.rows[+tr.dataset.i];closeTools();
+      const m=/^(.*?) (NOT )?(USES_TECHNIQUE|USES|TARGETS|EXPLOITS) (.*)$/.exec(r.claim||""); run(m?askOf(m[1],m[3],m[4],!!m[2]):r.input)}));
+    const c=$("b-csv"); if(c) c.addEventListener("click",()=>withBusy(c,"…",async()=>{const r=await postJSON("/batch?format=csv",{text});saveBlob(await r.blob(),fileNameFrom(r,"batch.csv"))}));
+  };
+  lastBatch={html,bind}; $("t-res").innerHTML=html; bind();
+}
+
 /* ---------------- wire up ---------------- */
 buildScenarios(); loadHealth();
 Object.entries(PRESET_REPORTS).forEach(([k,v])=>{const o=document.createElement("option");o.value=k;o.textContent=v.title;$("u-pre").appendChild(o)});
@@ -512,9 +767,18 @@ $("close-ingest").addEventListener("click",closeModal);
 $("cancel-ingest").addEventListener("click",closeModal);
 $("submit-ingest").addEventListener("click",submitReport);
 $("modal").addEventListener("click",e=>{if(e.target.id==="modal")closeModal()});
+["open-tools","open-iocs","open-batch"].forEach(id=>$(id).addEventListener("click",e=>openTools(e.currentTarget.dataset.tab)));
+$("close-tools").addEventListener("click",closeTools);
+$("tools").addEventListener("click",e=>{if(e.target.id==="tools")closeTools()});
+document.querySelectorAll("#ttabs .tab").forEach(b=>b.addEventListener("click",()=>showPane(b.dataset.p)));
+$("t-run").addEventListener("click",runTool);
+$("t-sample").addEventListener("click",useSample);
+$("t-file").addEventListener("change",loadFile);
+$("close-ent").addEventListener("click",closeEntity);
 document.addEventListener("keydown",e=>{
-  if(e.key==="Escape")closeModal();
-  if(document.activeElement===$("q")||$("modal").classList.contains("on")||e.ctrlKey||e.metaKey||e.altKey)return;
+  if(e.key==="Escape"){closeModal();closeTools();closeEntity()}
+  const typing=/^(INPUT|TEXTAREA|SELECT)$/.test((document.activeElement||{}).tagName||"");
+  if(typing||$("modal").classList.contains("on")||$("tools").classList.contains("on")||e.ctrlKey||e.metaKey||e.altKey)return;
   const i=parseInt(e.key,10); if(i>=1&&i<=SCENARIOS.length)run(SCENARIOS[i-1].q);
 });
 const qp=new URLSearchParams(location.search).get("q"); if(qp){$("q").value=qp;run(qp)}

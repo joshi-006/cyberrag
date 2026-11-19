@@ -29,6 +29,7 @@ from pydantic import BaseModel
 from src.graph_rag_pipeline import GraphRAGPipeline
 from src.agent.retrieval_agent import CyberRAGAgent
 from src.llm.llm_client import LocalLLMClient
+from demo import api_v1
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("CyberRAG-Server")
@@ -139,10 +140,54 @@ class ReportIngestionRequest(BaseModel):
     text: str
 
 
+# ---------------------------------------------------------------------------
+# /api/v1: VerificationService (shared with the MCP server) + analyst tools.
+# Built in a background thread after the agent pipeline so the workbench is
+# usable immediately; it reuses the already-loaded DeBERTa verifier.
+# ---------------------------------------------------------------------------
+import threading
+
+_SERVICE: Dict[str, Any] = {"svc": None, "error": None}
+_SERVICE_LOCK = threading.Lock()
+
+
+def _build_verification_service() -> None:
+    try:
+        from src.core.bootstrap import build_service
+        from src.core.config import load_settings
+
+        settings = load_settings(load_demo_overlay=True)
+        shared = getattr(PIPELINE, "verifier", None)
+        if shared is not None and getattr(shared, "model_name", None) != settings.nli_model:
+            shared = None
+        svc = build_service(settings, verifier=shared)
+        with _SERVICE_LOCK:
+            _SERVICE["svc"] = svc
+        logger.info("VerificationService ready for /api/v1 (demo overlay records: %s).", svc.overlay_loaded)
+    except Exception as exc:  # keep the workbench up even if v1 cannot start
+        logger.exception("VerificationService failed to start; /api/v1 will return 503")
+        with _SERVICE_LOCK:
+            _SERVICE["error"] = str(exc)
+
+
+def _service_provider():
+    with _SERVICE_LOCK:
+        svc, err = _SERVICE["svc"], _SERVICE["error"]
+    if svc is not None:
+        return svc
+    raise api_v1.ServiceWarmingUp(f"Verification service failed to start: {err}" if err else
+                                  "Verification service is still loading models; retry in a few seconds.")
+
+
+api_v1.set_service_provider(_service_provider)
+app.include_router(api_v1.router)
+
+
 @app.on_event("startup")
 async def startup_event():
     # Warm up pipeline in background/on startup
     get_pipeline_and_agent()
+    threading.Thread(target=_build_verification_service, name="v1-service", daemon=True).start()
 
 
 @app.get("/", response_class=HTMLResponse)

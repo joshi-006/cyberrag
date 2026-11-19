@@ -259,9 +259,29 @@ streamlit run app.py
 ```
 Open `http://localhost:8501` in your browser. Select any of the preset scenarios or upload an arbitrary CTI PDF/TXT report.
 
+### Analyst Tools (Workbench + REST API)
+The workbench (`python demo/server.py`) adds these analyst tools on top of claim verification. Each one is also available as a REST endpoint under `/api/v1` (interactive docs at `http://127.0.0.1:8080/docs`).
+
+| Tool | Where in the workbench | Endpoint | What it does |
+| :--- | :--- | :--- | :--- |
+| **Report fact-check** | *Fact-check a report* | `POST /api/v1/factcheck` | Extracts the relationship claims in a new report (paste text or load PDF/TXT/MD/HTML) and checks each against the baseline corpus: `CORROBORATED`, `CONTRADICTED_BY_CORPUS`, `DISPUTED`, or `NEW_INTEL`. The report is never added to the corpus, so it cannot corroborate itself. |
+| **IOC extractor** | *Extract IOCs* | `POST /api/v1/iocs` (`?format=csv` / `?format=stix`) | Refangs `hxxp` / `[.]` and pulls IPv4s, domains, URLs, e-mails, MD5/SHA-1/SHA-256 and CVEs. Private IPs, file names and well-known reference sites are listed separately with the reason. Exports CSV or STIX 2.1 Indicators. |
+| **Batch verification** | *Batch verify* | `POST /api/v1/batch` (`?format=csv`) | Up to 25 claims per run, as `APT28 \| USES \| Zebrocy`, CSV rows, or questions. Returns a verdict table; click a row to open the full investigation. |
+| **Analyst brief** | *Download brief (.md)* on any verdict | `POST /api/v1/export/brief` | Markdown brief with verdict, evidence quotes, sources, dates, conflict resolution, decision trace and stated limits. Report text is escaped so it cannot inject formatting. |
+| **STIX 2.1 export** | *Export STIX 2.1* on any verdict | `POST /api/v1/export/stix` | Validated bundle: supported claims become Relationships; every verdict is kept as a Note with evidence references. |
+| **Entity profile** | Click a node in the graph | `GET /api/v1/entity/{name}` | Type, MITRE ID, aliases, first/last seen and graph links; clicking a link verifies it. |
+| **ATT&CK Navigator layer** | Entity profile / fact-check results | `GET /api/v1/navigator/{name}`, `POST /api/v1/navigator/report` | Layer file for [MITRE ATT&CK Navigator](https://mitre-attack.github.io/attack-navigator/) scored by evidence count. Technique links are automatic and unreviewed, and the layer says so. |
+
+The same `VerificationService` also backs `POST /api/v1/verify_claim`, `/verify_question`, `/search`, `GET /api/v1/timeline` and `/trace/{verification_id}`, so scripts and the MCP server get identical verdicts.
+
+> Fact-check results inherit the relation extractor's limits (measured precision about one third, section 3): every row shows the report sentence it came from, and should be reviewed before it is acted on.
+
 ### Run the Test Suite
 ```bash
-# Run all 71 unit and integration tests across all 15 test suites
+# Full suite (140 tests: unit, real-model end-to-end, REST API)
+python -m pytest
+
+# Legacy unittest runner (the unittest-style subset)
 python run_tests.py
 ```
 

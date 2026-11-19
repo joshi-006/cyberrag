@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.1.0 - Analyst tools
+
+### Fixed
+- Data integrity check failed on every macOS/Linux checkout: `data/MANIFEST.json` was built from CRLF files on Windows, while git checks them out with LF. Manifest hashes are now line-ending independent for text files (old raw-byte manifests are still accepted), the manifest was rebuilt (contents verified byte-identical apart from line endings), and `.gitattributes` pins `*.json` / `*.jsonl` to LF. This had disabled the `VerificationService` and MCP server and errored 8 tests.
+- `tests/test_knowledge_graph.py` never ran under pytest: its data helper was missing `@pytest.fixture`.
+- The local LLM auto-detect treated any server answering `/v1/models` with HTTP 200 as an LLM (for example a web app on port 8080 returning HTML). It now requires an OpenAI-style JSON model list.
+
+### Added
+- `/api/v1` REST API (`demo/api_v1.py`) over `VerificationService`: `stats`, `search`, `verify_claim`, `verify_question`, `entity/{name}`, `timeline`, `trace/{id}`, plus the analyst tools below. The workbench builds the service in the background after startup and shares its DeBERTa verifier (`build_service(settings, verifier=...)`), so no second NLI model is loaded. Endpoints answer `503 WARMING_UP` until it is ready; IOC extraction works immediately.
+- `src/analyst/`: report fact-check against the corpus, IOC extraction with refanging and reasoned exclusions (CSV / STIX 2.1 Indicators), batch claim verification (CSV), Markdown analyst brief, ATT&CK Navigator layer export.
+- Workbench UI: *Analyst tools* dialog (fact-check, IOCs, batch; paste or load a file), brief and STIX export buttons on every verdict, entity profile drawer on graph-node click with one-click verification of graph links and a Navigator layer download.
+- Tests: `test_analyst_tools.py` (32, no models), `test_api_v1.py` (16, real models), `test_manifest_hash.py` (4). Full suite: 140 passed.
+
 ## 1.0.0 - Stage 1: hardening + MCP server (built on CyberRAG v5)
 
 ### Added

@@ -1,0 +1,4 @@
+# Keep data files byte-identical across Windows and Unix checkouts.
+*.jsonl text eol=lf
+*.json  text eol=lf
+*.npy   binary

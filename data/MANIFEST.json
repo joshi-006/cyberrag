@@ -1,24 +1,24 @@
 {
   "files": {
     "assertions.jsonl": {
-      "bytes": 561510,
-      "sha256": "53291265552a20d9e039092b1446b8b0839e8f39acfdfe7f827b58c2999a4a40"
+      "bytes": 561136,
+      "sha256": "41e28297469569a536380bd4f7c21722a929bdb61ff35edc7440d5d39f3f74bd"
     },
     "cti_knowledge_graph_trusted.json": {
-      "bytes": 1996698,
-      "sha256": "ddd5f1c815d3645cc6492f5a8f3dc0135dd65eae290df5266d7b2f1087b5a95f"
+      "bytes": 1941369,
+      "sha256": "871d8c161f9e1d15fc015b1166b55e41d567bfed1c68c37fa9f84f9765a67a5f"
     },
     "knowledge/alias_overrides.json": {
       "bytes": 1228,
       "sha256": "0a7310f64fba762e1e3cafaa2cca906a9f4fc2f546348609be3dd6cd828f0143"
     },
     "knowledge/mitre_attack_registry.json": {
-      "bytes": 692742,
-      "sha256": "359a52c961a09423334b852299f1cdb4308846fe83c4779ecb50c0056c6b042c"
+      "bytes": 674185,
+      "sha256": "6c36d9cb0df2474b7cf9bdc9452ef7c213277a023e92c4a6af6d1fa9b6881cd8"
     },
     "processed_segments.jsonl": {
-      "bytes": 5778668,
-      "sha256": "2377985f3fc3267066b2f7b7d5a39cdca1626da258ac2f352b9ea391a9c04bd9"
+      "bytes": 5772677,
+      "sha256": "fc83185608e78925127df800c761ae241450114bc2d04520192134a34a982509"
     }
   },
   "version": 1
