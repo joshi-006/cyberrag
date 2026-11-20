@@ -451,12 +451,12 @@ button.cell{cursor:pointer}button.cell:hover{box-shadow:0 0 0 3px rgba(15,23,42,
 "use strict";
 /* ---------------- config ---------------- */
 const SCENARIOS = [
-  {k:"1", q:"Does APT28 use Zebrocy?",               t:"Confirmed Use",       c:"#1e7a47", d:"Multiple report sentences directly confirm it."},
-  {k:"2", q:"Does APT28 target NATO?",               t:"Confirmed Target",    c:"#1e7a47", d:"Targeting explicitly confirmed in report text."},
-  {k:"3", q:"Does Emotet use TrickBot?",             t:"Outdated Intel",      c:"#6a4c93", d:"Supported earlier, but superseded by a later takedown."},
-  {k:"4", q:"Does Lazarus target banks?",            t:"Suspected Link",      c:"#9a5b00", d:"Only tentative “might link” wording — flagged as unconfirmed."},
-  {k:"5", q:"Does Sandworm use Cyclops Blink?",      t:"Missing Intel",       c:"#475569", d:"Not in reports — system declines instead of hallucinating."},
-  {k:"6", q:"Does Turla use Zebrocy?",               t:"Footnote Filter",     c:"#475569", d:"Rejects bibliography & reference lists from being cited as proof."}
+  {k:"1", q:"Does APT28 use Zebrocy?",               t:"Confirmed Use",       c:"#1e7a47", d:"Several passages from one vendor confirm it."},
+  {k:"2", q:"Does APT28 target NATO?",               t:"Confirmed Target",    c:"#1e7a47", d:"Targeting stated in the same sentence."},
+  {k:"3", q:"Does Emotet use TrickBot?",             t:"Changes over time",   c:"#6a4c93", d:"Earlier support, later takedown report."},
+  {k:"4", q:"Does Lazarus target banks?",            t:"Suspected Link",      c:"#9a5b00", d:"Only “might link” wording: tentative."},
+  {k:"5", q:"Does Sandworm use Cyclops Blink?",      t:"No evidence",         c:"#475569", d:"Not in the corpus, so it declines to answer."},
+  {k:"6", q:"Does Turla use Zebrocy?",               t:"Citation guard",      c:"#475569", d:"A footnote list is not evidence."}
 ];
 const STATUS = {
   SUPPORTED:{label:"Supported",c:"--green",bg:"--green-bg",icon:"M5 13l4 4L19 7"},
