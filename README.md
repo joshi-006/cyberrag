@@ -5,7 +5,7 @@
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-Analyst%20Workbench-009688.svg)](demo/)
 [![Transformers](https://img.shields.io/badge/DeBERTa--v3-NLI%20Verifier-yellow.svg)](https://huggingface.co/cross-encoder/nli-deberta-v3-base)
-[![Tests: 160 Passing](https://img.shields.io/badge/Tests-160%20Passing-brightgreen.svg)](tests/)
+[![Tests: 168 Passing](https://img.shields.io/badge/Tests-168%20Passing-brightgreen.svg)](tests/)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
 ---
@@ -68,18 +68,19 @@ flowchart LR
 
 ## 📊 Benchmark Results
 
-| Model | Precision | Recall | F1 Score | Evaluation Split |
+| Evaluation Benchmark | Precision | Recall | F1 Score | Evaluation Protocol |
 | :--- | :---: | :---: | :---: | :--- |
-| **Gazetteer Dictionary** | 0.3668 | 0.3342 | 0.3497 | AnnoCTR Test (3,059 sentences) |
-| **ThreatIntel Hybrid NER** | **0.3964** | **0.4933** | **0.4396** | AnnoCTR Test (+25.7% F1 gain) |
-| **Test Suite** | **160 / 160 Passing** | — | — | Full offline pytest suite |
+| **Controlled Challenge Benchmark** | **0.8614** | **0.9355** | **0.8969** | Synthetic CTI GroupKFold CV (NER F1: 0.9809) |
+| **AnnoCTR Curated Test Split** | **0.6071** | **0.5965** | **0.6018** | 100 held-out sentences (+11.4 F1 gain) |
+| **AnnoCTR Full Test Split (3,059 sents)** | **0.3964** | **0.4933** | **0.4396** | Full noisy corpus (+25.7% rel. gain) |
+| **Test Suite** | **168 / 168 Passing** | — | — | Full offline pytest suite |
 
 ---
 
 ## 🧪 Testing
 
 ```bash
-# Run complete test suite (160 tests)
+# Run complete test suite (168 tests)
 python -m pytest
 ```
 
