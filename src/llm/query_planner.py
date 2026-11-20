@@ -72,8 +72,18 @@ class SubClaim:
     predicate: str  # Must be one of CANONICAL_PREDICATES
     object: str
     raw_relation: str = ""
+    polarity: str = "positive"
 
     def to_natural_phrase(self) -> str:
+        if self.polarity == "negative":
+            pred_map = {
+                "USES": "does not use",
+                "TARGETS": "does not target",
+                "EXPLOITS": "does not exploit",
+                "USES_TECHNIQUE": "does not use technique",
+            }
+            verb = pred_map.get(self.predicate, f"does not {self.predicate.lower()}")
+            return f"{self.subject} {verb} {self.object}"
         pred_map = {
             "USES": "uses",
             "TARGETS": "targets",
@@ -180,6 +190,11 @@ class LLMQueryPlanner:
             elif re.search(r"\b(use|uses|used|using|deploy|deploys|deployed|operates|operating|associated\s+with|associated|linked\s+to|connected\s+to)\b", query, re.I):
                 pred = "USES"
 
+            neg_match = re.search(r"\b(not|no\s+longer|never|doesn'?t|didn'?t|isn'?t|ceas(?:e|ed)|stop(?:ped)?)\b", query, re.I)
+            polarity = "negative" if (neg_match or str(data.get("polarity", "")).lower() == "negative") else "positive"
+            sub = re.sub(r"\b(not|no\s+longer|never|doesn'?t|didn'?t|isn'?t)\b", "", sub, flags=re.I).strip()
+            obj = re.sub(r"\b(not|no\s+longer|never|doesn'?t|didn'?t|isn'?t)\b", "", obj, flags=re.I).strip()
+
             t_scope = None
             if data.get("temporal_scope") and len(data["temporal_scope"]) == 2:
                 t_scope = (f"{data['temporal_scope'][0]}-01-01", f"{data['temporal_scope'][1]}-12-31")
@@ -187,7 +202,8 @@ class LLMQueryPlanner:
             entities = [sub, obj]
             aliases = {e: self.expander.get_aliases(e) for e in entities if self.expander.get_aliases(e)}
 
-            sub_claims = [SubClaim(subject=sub, predicate=pred, object=obj)]
+            sub_claims = [SubClaim(subject=sub, predicate=pred, object=obj, polarity=polarity)]
+            search_queries = [query, f"{sub} {obj}", f"{sub} {pred.lower()} {obj}"]
             return QueryPlan(
                 raw_query=query,
                 intent=intent,
@@ -195,7 +211,7 @@ class LLMQueryPlanner:
                 aliases=aliases,
                 sub_claims=sub_claims,
                 temporal_scope=t_scope,
-                search_queries=[query, f"{sub} {obj}", f"{sub} {pred.lower()} {obj}"],
+                search_queries=list(dict.fromkeys(search_queries)),
             )
         except Exception:
             return None
@@ -227,6 +243,8 @@ class LLMQueryPlanner:
         for claim in sub_claims:
             search_queries.append(claim.to_natural_phrase())
             search_queries.append(f"{claim.subject} {claim.object}")
+            if claim.polarity == "negative":
+                search_queries.append(f"{claim.subject} {claim.predicate.lower()} {claim.object}")
 
         return QueryPlan(
             raw_query=query,
@@ -270,6 +288,10 @@ class LLMQueryPlanner:
                 o_part = query[m.end():].strip()
 
                 s_clean = re.sub(r"^(does|did|is|was|whether|can)\s+", "", s_part, flags=re.IGNORECASE).strip()
+                neg_match = re.search(r"\b(not|no\s+longer|never|doesn'?t|didn'?t|isn'?t|stop(?:ped)?)\b", s_clean, re.I)
+                polarity = "negative" if neg_match else "positive"
+                if neg_match:
+                    s_clean = re.sub(r"\b(not|no\s+longer|never|doesn'?t|didn'?t|isn'?t|stop(?:ped)?)\b", "", s_clean, flags=re.IGNORECASE).strip()
                 s_clean = re.sub(r"[^\w\s-]", "", s_clean).strip()
                 o_clean = re.sub(r"[^\w\s-]", "", o_part).strip()
 
@@ -280,6 +302,7 @@ class LLMQueryPlanner:
                         predicate=canonical,
                         object=o_clean,
                         raw_relation=found_rel,
+                        polarity=polarity,
                     ))
                 break
 

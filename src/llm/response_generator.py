@@ -26,9 +26,11 @@ class GroundedResponseGenerator:
         supporting: List[Dict[str, Any]],
         contradicting: List[Dict[str, Any]],
         conflict_result: Optional[Dict[str, Any]] = None,
+        polarity: str = "positive",
     ) -> str:
+        claim_str = f"{subject} {'NOT ' if polarity == 'negative' else ''}{predicate} {obj}"
         lines = [
-            f"### CyberRAG Evidence Verification Brief: `{subject} {predicate} {obj}`",
+            f"### ThreatIntel Evidence Verification Brief: `{claim_str}`",
             f"**Overall Status**: `{status}` | **Confidence Score**: `{confidence:.2f}` | **Source Diversity**: `{source_diversity} independent vendor(s)`",
             "",
             "#### Supporting Evidence Citations:",

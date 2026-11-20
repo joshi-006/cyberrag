@@ -485,7 +485,7 @@ button.cell{cursor:pointer}button.cell:hover{box-shadow:0 0 0 3px rgba(15,23,42,
 /* ---------------- config ---------------- */
 const SCENARIOS = [
   {k:"1", q:"Does APT28 use Zebrocy?",               t:"Confirmed Use",       c:"#1e7a47", d:"Several passages from one vendor confirm it."},
-  {k:"2", q:"Does APT28 target NATO?",               t:"Confirmed Target",    c:"#1e7a47", d:"Targeting stated in the same sentence."},
+  {k:"2", q:"Does APT28 not use Zebrocy?",           t:"Direct Contradiction",c:"#b42318", d:"Reports directly refute the negative assertion."},
   {k:"3", q:"Does Emotet use TrickBot?",             t:"Changes over time",   c:"#6a4c93", d:"Earlier support, later takedown report."},
   {k:"4", q:"Does Lazarus target banks?",            t:"Suspected Link",      c:"#9a5b00", d:"Only “might link” wording: tentative."},
   {k:"5", q:"Does Sandworm use Cyclops Blink?",      t:"No evidence",         c:"#475569", d:"Not in the corpus, so it declines to answer."},
@@ -569,8 +569,13 @@ function parseEntities(d){
 }
 function claimParts(d){
   const m=/Brief:\s*`([^`]+)`/.exec(d.narrative||"");
-  const txt=m?m[1]:d.query; const r=/^(.*?)\s+(USES_TECHNIQUE|USES|TARGETS|EXPLOITS)\s+(.*)$/.exec(txt);
-  return r?{s:r[1],r:r[2],o:r[3]}:{s:txt,r:"",o:""};
+  const txt=m?m[1]:d.query; const r=/^(.*?)\s+((?:NOT\s+)?(?:USES_TECHNIQUE|USES|TARGETS|EXPLOITS))\s+(.*)$/.exec(txt);
+  if(r){
+    const neg = r[2].startsWith("NOT ");
+    const rel = neg ? r[2].slice(4).trim() : r[2];
+    return {s:r[1], r:r[2], rel:rel, pol:neg?"negative":"positive", o:r[3]};
+  }
+  return {s:txt, r:"", rel:"", pol:"positive", o:""};
 }
 function explain(d){
   const cr=d.conflict_resolution||{}; const sup=(d.supporting_evidence||[]).length, con=(d.contradicting_evidence||[]).length;
@@ -1328,7 +1333,7 @@ let tm=null;
 async function initTimeMachine(cp){
   const myQuery=lastInv&&lastInv.query;
   try{
-    const qs=new URLSearchParams({subject:cp.s,relation:cp.r,object:cp.o});
+    const qs=new URLSearchParams({subject:cp.s,relation:cp.rel||cp.r,polarity:cp.pol||"positive",object:cp.o});
     const d=await (await api("/timetravel?"+qs)).json();
     if(!lastInv||lastInv.query!==myQuery||!$("tmbody")) return;
     if(!d.checkpoints.length){ $("tmbody").innerHTML=`<div class="hint">No dated evidence for this claim, so there is no timeline to replay.</div>`; return; }

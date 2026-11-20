@@ -146,6 +146,7 @@ class CyberRAGAgent:
 
         subject = plan.sub_claims[0].subject if plan.sub_claims else (plan.entities[0] if plan.entities else "Unknown")
         predicate = plan.sub_claims[0].predicate if plan.sub_claims else "USES"
+        polarity = plan.sub_claims[0].polarity if plan.sub_claims else "positive"
         obj = plan.sub_claims[0].object if plan.sub_claims else (plan.entities[1] if len(plan.entities) > 1 else "Unknown")
 
         # ----------------------------------------------------------------------
@@ -244,14 +245,14 @@ class CyberRAGAgent:
         # ----------------------------------------------------------------------
         current_state = AgentState.VERIFICATION
         verified_evidence, supporting, contradicting = self.tools.execute_verification(
-            probative_evidence, subject, predicate, obj
+            probative_evidence, subject, predicate, obj, polarity=polarity
         )
 
         record_step(
             state=current_state,
             action=f"Evaluated {len(probative_evidence)} probative passages using DeBERTa-v3 NLI cross-encoder.",
             tool_name="CTIEvidenceVerifier.verify",
-            tool_in={"hypothesis": f"{subject} {predicate} {obj}", "num_passages": len(probative_evidence)},
+            tool_in={"hypothesis": SubClaim(subject, predicate, obj, polarity=polarity).to_natural_phrase(), "num_passages": len(probative_evidence)},
             tool_out=f"Results: {len(supporting)} Entailments, {len(contradicting)} Contradictions, {len(probative_evidence) - len(supporting) - len(contradicting)} Neutral.",
             decision_outcome=f"Classified evidence: {len(supporting)} support, {len(contradicting)} contradiction.",
         )
@@ -288,6 +289,7 @@ class CyberRAGAgent:
             conflict_result=conflict_result,
             state_history=state_history,
             trace=trace,
+            polarity=polarity,
         )
 
         record_step(
@@ -312,6 +314,7 @@ class CyberRAGAgent:
         conflict_result: Optional[Dict[str, Any]],
         state_history: List[AgentState],
         trace: List[AgentStepTrace],
+        polarity: str = "positive",
     ) -> GroundedReport:
         all_sources = set(it.get("source") for it in supporting if it.get("source"))
         source_diversity = len(all_sources)
@@ -354,6 +357,7 @@ class CyberRAGAgent:
             supporting=supporting,
             contradicting=contradicting,
             conflict_result=conflict_result,
+            polarity=polarity,
         )
 
         return GroundedReport(

@@ -80,13 +80,13 @@ class AgentToolRegistry:
         return deduped
 
     def execute_verification(
-        self, probative_items: List[Dict[str, Any]], subject: str, predicate: str, obj: str
+        self, probative_items: List[Dict[str, Any]], subject: str, predicate: str, obj: str, polarity: str = "positive"
     ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]], List[Dict[str, Any]]]:
         supporting = []
         contradicting = []
         verified_items = []
 
-        sub_claim = SubClaim(subject=subject, predicate=predicate, object=obj)
+        sub_claim = SubClaim(subject=subject, predicate=predicate, object=obj, polarity=polarity)
         hypothesis = sub_claim.to_natural_phrase()
 
         for it in probative_items:
