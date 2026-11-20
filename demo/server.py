@@ -34,7 +34,7 @@ from demo import api_v1
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("CyberRAG-Server")
 
-app = FastAPI(title="CyberRAG CTI Investigation Workbench", version="2.0.0")
+app = FastAPI(title="ThreatIntel CTI Investigation Workbench", version="2.0.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -594,7 +594,7 @@ async def export_evidence_brief(req: BriefExportRequest):
 
     md_lines.extend([
         "---",
-        "*Exported from CyberRAG CTI Investigation Workbench · Complete Sentence-Level Provenance Audit Trail Preserved*",
+        "*Exported from ThreatIntel CTI Investigation Workbench · Complete Sentence-Level Provenance Audit Trail Preserved*",
         "*Caveat: The evidence score is a rule-based heuristic over retrieved sentences, not a calibrated probability. Underlying knowledge graph relations are automatically extracted and unreviewed (human double-annotator precision ~1/3). This brief records an analyst review step over raw evidence citations.*",
     ])
 
