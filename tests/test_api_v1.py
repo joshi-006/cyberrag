@@ -200,3 +200,12 @@ def test_compare_real_graph_and_exports(client):
     layer = json.loads(client.post("/api/v1/compare?format=layer", json=body).text)
     assert layer["techniques"] and max(t["score"] for t in layer["techniques"]) == 3
     assert client.post("/api/v1/compare", json={"names": ["Emotet"]}).status_code == 400
+
+
+def test_ask_real_graph(client):
+    d = client.post("/api/v1/ask", json={"question": "What does APT28 target?"}).json()
+    assert d["entity"]["name"] == "APT28" and d["relation"] == "TARGETS"
+    assert {a["object"] for a in d["answers"]} >= {"NATO"} and d["confirmed"] >= 1
+    g = client.post("/api/v1/ask", json={"question": "Which groups target government?"}).json()
+    assert g["entity"]["name"] == "government" and any(a["subject"] == "APT28" for a in g["answers"])
+    assert client.post("/api/v1/ask", json={"question": "What does Nobody123 do?"}).status_code in (400, 404)

@@ -5,7 +5,7 @@
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-Analyst%20Workbench-009688.svg)](demo/)
 [![Transformers](https://img.shields.io/badge/DeBERTa--v3-NLI%20Verifier-yellow.svg)](https://huggingface.co/cross-encoder/nli-deberta-v3-base)
-[![Tests: 153 Passing](https://img.shields.io/badge/Tests-153%20Passing-brightgreen.svg)](tests/)
+[![Tests: 160 Passing](https://img.shields.io/badge/Tests-160%20Passing-brightgreen.svg)](tests/)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
 ---
@@ -40,12 +40,15 @@ Open **[http://localhost:8080](http://localhost:8080)** in your browser.
 | Tool | Endpoint | Description |
 | :--- | :--- | :--- |
 | **Claim Verifier** | `POST /api/investigate` | Verifies threat claims with sentence-level citations. |
+| **Entity Questions** | `POST /api/v1/ask` | Answers open questions (e.g. *"What does APT28 target?"*). |
+| **Claim Watchlist** | `POST /api/check_claims` | Watches claims and alerts when newly added reports alter verdicts. |
 | **Time Machine** | `GET /api/v1/timetravel` | Replays intelligence verdicts historically as of any date. |
 | **Connect Entities** | `POST /api/v1/connect` | Shortest relation chains between two actors/malware. |
 | **Compare** | `POST /api/v1/compare` | Side-by-side matrix of shared tools, targets & techniques. |
 | **Fact-Check** | `POST /api/v1/factcheck` | Cross-checks unvetted reports against the corpus. |
 | **IOC Extractor** | `POST /api/v1/iocs` | Extracts and defangs IPs, domains, CVEs & hashes. |
 | **Batch Verify** | `POST /api/v1/batch` | Verifies up to 25 claims per run with CSV export. |
+| **Print / PDF Brief** | Browser Print | Printable investigation brief with timeline and evidence quotes. |
 
 ---
 
@@ -69,14 +72,14 @@ flowchart LR
 | :--- | :---: | :---: | :---: | :--- |
 | **Gazetteer Dictionary** | 0.3668 | 0.3342 | 0.3497 | AnnoCTR Test (3,059 sentences) |
 | **ThreatIntel Hybrid NER** | **0.3964** | **0.4933** | **0.4396** | AnnoCTR Test (+25.7% F1 gain) |
-| **Test Suite** | **153 / 153 Passing** | — | — | Full offline pytest suite |
+| **Test Suite** | **160 / 160 Passing** | — | — | Full offline pytest suite |
 
 ---
 
 ## 🧪 Testing
 
 ```bash
-# Run complete test suite (153 tests)
+# Run complete test suite (160 tests)
 python -m pytest
 ```
 

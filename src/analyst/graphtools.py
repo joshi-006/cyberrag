@@ -29,10 +29,32 @@ def _index(service: Any) -> Dict[str, Any]:
     return service._graph()
 
 
+def _linked_name_index(service: Any) -> Dict[str, Dict[str, Any]]:
+    """lower-case name -> the linked node with that exact name (most relations wins)."""
+    cached = getattr(service, "_linked_name_index", None)
+    if cached is not None:
+        return cached
+    gi = _index(service)
+    idx: Dict[str, Dict[str, Any]] = {}
+    for nid, n in gi["nodes"].items():
+        deg = len(gi["links"].get(nid, []))
+        if not deg:
+            continue
+        key = (n.get("name") or nid.split("::")[-1]).strip().lower()
+        if key not in idx or deg > len(gi["links"].get(idx[key]["id"], [])):
+            idx[key] = n
+    service._linked_name_index = idx
+    return idx
+
+
 def resolve_node(service: Any, name: str) -> Dict[str, Any]:
     if not isinstance(name, str) or not name.strip() or len(name) > 120:
         raise InvalidInputError("Entity names must be 1-120 characters")
-    node = service._find_node(service.aliases.resolve(name.strip()))
+    # An exact name match on a node that has relations wins: the alias resolver can map a
+    # generic word ("government") to a different, unlinked registry entry.
+    node = _linked_name_index(service).get(name.strip().lower())
+    if node is None:
+        node = service._find_node(service.aliases.resolve(name.strip()))
     if node is None:
         raise EntityNotFoundError(f"{name!r} is not in the corpus knowledge graph",
                                   hint="Try another spelling or alias; only entities linked in the graph can be connected or compared.")
